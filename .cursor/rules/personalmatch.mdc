@@ -1,0 +1,19 @@
+---
+description: PersonalMatch project rules — architecture, git discipline, zero hardcoding
+alwaysApply: true
+---
+
+# PersonalMatch — Cursor Rules
+
+Refer to PROJECT.md for the full architecture and phase breakdown. Follow it exactly.
+
+## Critical Rules
+
+- Commit after EVERY PROJECT.md step with the exact commit message
+- NEVER hardcode URLs, credentials, thresholds, weights, or model names — use config/settings.py
+- Scoring is deterministic; LLM only explains pre-computed scores
+- Python 3.11+, type hints, Google docstrings, logging not print()
+- Scripts runnable via `pip install -e .` then `python scripts/script_name.py`
+- Integration tests use `@pytest.mark.integration` and `RUN_INTEGRATION=1`
+
+See cursorrules at repo root for the full rule set.

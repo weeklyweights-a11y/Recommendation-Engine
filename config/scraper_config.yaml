@@ -1,0 +1,33 @@
+# Job scraper configuration — add sources under `sources`.
+# All selectors are CSS unless `selector_type: xpath` is set.
+
+sources: []
+
+# Example source (commented — uncomment and set a real careers URL to test):
+# sources:
+#   - name: example_careers
+#     enabled: false
+#     base_url: https://example.com/careers
+#     listing_path: /jobs
+#     selector_type: css
+#     selectors:
+#       job_card: "article.job-listing"
+#       title: "h2.title"
+#       company: "span.company"
+#       description: "div.description"
+#       location: "span.location"
+#       salary: "span.salary"
+#       posted_date: "time.posted"
+#       link: "a.apply"
+#     pagination:
+#       type: query_param
+#       param: page
+#       start: 1
+#       max_pages: 5
+#     rate_limit_seconds: 2.0
+#     user_agent: "PersonalMatchBot/1.0 (+https://github.com/example)"
+
+defaults:
+  rate_limit_seconds: 2.0
+  user_agent: "PersonalMatchBot/1.0"
+  max_pages: 10

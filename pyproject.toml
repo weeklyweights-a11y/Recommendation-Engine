@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "personalmatch"
+version = "0.1.0"
+description = "AI-powered personalized job recommendation engine"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["config*", "src*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: marks tests requiring Docker services (deselect with '-m not integration')",
+]
