@@ -4,11 +4,10 @@ import json
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 from rapidfuzz import fuzz, process
-from sentence_transformers import SentenceTransformer
 
 from config.settings import Settings, get_settings
 from src.knowledge_graph.neo4j_client import Neo4jClient
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 _label_index: dict[str, str] = {}
 _uri_labels: dict[str, str] = {}
-_embedding_model: Optional[SentenceTransformer] = None
+_embedding_model: Any = None
 _skill_matrix: Optional[np.ndarray] = None
 _uri_by_index: list[str] = []
 
@@ -53,6 +52,8 @@ def _load_embeddings(settings: Settings) -> None:
         raise FileNotFoundError(
             "ESCO embeddings not found — run scripts/precompute_esco_embeddings.py first",
         )
+    from sentence_transformers import SentenceTransformer
+
     _skill_matrix = np.load(matrix_path)
     with index_path.open(encoding="utf-8") as handle:
         _uri_by_index = json.load(handle)

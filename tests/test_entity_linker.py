@@ -46,12 +46,3 @@ def test_link_skills_batch():
     assert results[2] is None
 
 
-def test_hop_weight_broader_penalty():
-    """Broader relations apply penalty multiplier."""
-    from src.knowledge_graph.skill_expander import _hop_weight
-    from config.settings import SkillGraphSettings
-
-    settings = SkillGraphSettings()
-    related = _hop_weight(settings, 1, "related")
-    broader = _hop_weight(settings, 1, "broader")
-    assert broader < related

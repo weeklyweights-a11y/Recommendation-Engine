@@ -5,8 +5,6 @@ from functools import lru_cache
 from typing import Optional
 
 from config.settings import get_settings
-from src.knowledge_graph.entity_linker import link_skill
-from src.knowledge_graph.neo4j_client import Neo4jClient
 from src.knowledge_graph.schemas import ExpandedSkill, OccupationSkill
 
 logger = logging.getLogger(__name__)
@@ -14,14 +12,15 @@ logger = logging.getLogger(__name__)
 
 def _hop_weight(settings, hop: int, rel_type: str) -> float:
     """Compute decay weight for a hop and relationship type."""
+    graph = settings.skill_graph if hasattr(settings, "skill_graph") else settings
     if hop == 1:
-        base = settings.skill_graph.skill_hop_decay_1
+        base = graph.skill_hop_decay_1
     elif hop == 2:
-        base = settings.skill_graph.skill_hop_decay_2
+        base = graph.skill_hop_decay_2
     else:
-        base = settings.skill_graph.skill_hop_decay_3
+        base = graph.skill_hop_decay_3
     if rel_type in ("BROADER_THAN", "broader"):
-        return base * settings.skill_graph.skill_broader_penalty
+        return base * graph.skill_broader_penalty
     return base
 
 
@@ -43,6 +42,8 @@ def _expand_skill_impl(skill_uri: str, max_hops: int) -> list[ExpandedSkill]:
            length(path) AS hop_distance,
            [rel IN relationships(path) | coalesce(rel.relation_type, 'related')] AS rel_types
   """
+    from src.knowledge_graph.neo4j_client import Neo4jClient
+
     with Neo4jClient() as client:
         rows = client.run_query(cypher, {"uri": skill_uri})
 
@@ -76,6 +77,8 @@ def expand_skill(skill_uri: str, max_hops: int = 2) -> list[ExpandedSkill]:
 
 def expand_skill_by_label(label: str, max_hops: int = 2) -> list[ExpandedSkill]:
     """Link a label then expand its ESCO URI."""
+    from src.knowledge_graph.entity_linker import link_skill
+
     linked = link_skill(label)
     if not linked:
         return []
@@ -102,6 +105,8 @@ def get_skills_for_occupation(occupation_uri: str) -> list[OccupationSkill]:
     MATCH (o:Occupation {uri: $uri})-[r:REQUIRES_SKILL]->(s:Skill)
     RETURN s.uri AS uri, s.label AS label, r.relationship_type AS relationship_type
     """
+    from src.knowledge_graph.neo4j_client import Neo4jClient
+
     with Neo4jClient() as client:
         rows = client.run_query(cypher, {"uri": occupation_uri})
     return [

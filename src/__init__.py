@@ -1,1 +1,1 @@
-"""Package."""\n
+"""Package."""
