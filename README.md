@@ -155,6 +155,42 @@ Manual checks:
 - Profile: edit preferences, re-upload resume, view saved/dismissed jobs
 - `pytest tests/test_weight_adjuster.py -v`
 
+## Phase 6 runbook
+
+Prerequisites: Phase 1–5 complete; host `data/faiss_indexes/` and `data/esco/` embeddings present for recommendations.
+
+### Local development (default)
+
+Infrastructure in Docker; API and Streamlit on the host:
+
+```bash
+docker compose up -d postgres neo4j elasticsearch redis
+pip install -e .
+uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+set API_BASE_URL=http://127.0.0.1:8000
+streamlit run frontend/app.py
+```
+
+Health: `GET http://127.0.0.1:8000/api/v1/health` — `healthy` when all services are up; `degraded` when a non-Postgres dependency is down but the API still responds.
+
+### Full stack in Docker
+
+Build and run API + frontend with read-only mounts for FAISS and ESCO artifacts:
+
+```bash
+docker compose up -d
+```
+
+- API: `http://localhost:8000/api/v1/health`
+- Frontend: `http://localhost:8501` (uses `API_BASE_URL=http://api:8000` inside compose)
+
+### Tests
+
+```bash
+pytest -m "not integration" -v
+RUN_INTEGRATION=1 pytest tests/test_integration.py -m integration -v
+```
+
 ## Project structure
 
 - `config/` — settings and logging

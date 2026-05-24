@@ -73,6 +73,56 @@ services:
     networks:
       - personalmatch-network
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      FAISS_INDEX_PATH: /app/data/faiss_indexes/
+      ESCO_DATA_PATH: /app/data/esco/
+      ESCO_EMBEDDINGS_PATH: /app/data/esco/skill_embeddings.npy
+      ESCO_URI_INDEX_PATH: /app/data/esco/skill_uri_index.json
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./data/faiss_indexes:/app/data/faiss_indexes:ro
+      - ./data/esco:/app/data/esco:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8000/api/v1/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    restart: unless-stopped
+    networks:
+      - personalmatch-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    env_file: .env
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "${FRONTEND_PORT:-8501}:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - personalmatch-network
+
 networks:
   personalmatch-network:
     driver: bridge
