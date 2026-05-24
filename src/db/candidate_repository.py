@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from src.embeddings.schemas import CandidateEmbeddings
+from src.embeddings.schemas import CandidateEmbeddings  # noqa: TC001 — used at runtime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -65,6 +65,11 @@ def load_merged_preferences(raw: Optional[dict[str, Any]]) -> MergedPreferences:
 
 def load_profile_embeddings(candidate: Candidate) -> Optional[dict[str, Any]]:
     """Deserialize stored embedding vectors for a candidate."""
+    return load_candidate_embeddings_vectors(candidate)
+
+
+def load_candidate_embeddings_vectors(candidate: Candidate) -> Optional[dict[str, Any]]:
+    """Deserialize stored embedding vectors for a candidate."""
     from src.embeddings.encoder import deserialize_embedding
 
     columns = (
@@ -81,3 +86,11 @@ def load_profile_embeddings(candidate: Candidate) -> Optional[dict[str, Any]]:
         "role": deserialize_embedding(candidate.embedding_role),  # type: ignore[arg-type]
         "environment": deserialize_embedding(candidate.embedding_environment),  # type: ignore[arg-type]
     }
+
+
+def load_candidate_embeddings(candidate: Candidate) -> Optional[CandidateEmbeddings]:
+    """Load CandidateEmbeddings from ORM binary columns."""
+    vectors = load_candidate_embeddings_vectors(candidate)
+    if vectors is None:
+        return None
+    return CandidateEmbeddings(**vectors)

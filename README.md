@@ -68,6 +68,35 @@ set RUN_INTEGRATION=1
 pytest tests/test_entity_linker.py -m integration
 ```
 
+## Phase 3 runbook
+
+Prerequisites: Phase 1–2 complete, Docker running, jobs in PostgreSQL.
+
+```bash
+# Unit tests (mocked encoder / FAISS fixtures)
+pytest tests/test_job_embedder.py tests/test_faiss_manager.py tests/test_vector_retriever.py tests/test_graph_retriever.py tests/test_hybrid_fuser.py tests/test_hybrid_pipeline.py -v
+
+# Smoke embed (adjust --limit as needed)
+python scripts/embed_jobs.py --limit 500
+
+# Full embed + FAISS indexes (hours on CPU for ~97k jobs)
+python scripts/embed_jobs.py
+
+# Rebuild FAISS only from existing PG embeddings
+python scripts/embed_jobs.py --rebuild-index
+
+# Refresh Elasticsearch skills_extracted after embed
+python scripts/index_jobs_elasticsearch.py --only-embedded
+
+# Hybrid retrieval demo (candidate must exist with embeddings in DB)
+python scripts/demo_hybrid_retrieval.py --email you@example.com
+
+set RUN_INTEGRATION=1
+pytest tests/test_vector_retriever.py tests/test_graph_retriever.py tests/test_hybrid_pipeline.py -m integration -v
+```
+
+Manual checks: `SELECT count(*) FROM jobs WHERE is_embedded = false` → 0; four `*_index.faiss` files under `FAISS_INDEX_PATH`; compare `FUSION_STRATEGY=rrf` vs `weighted_sum` on the same candidate.
+
 ## Project structure
 
 - `config/` — settings and logging
