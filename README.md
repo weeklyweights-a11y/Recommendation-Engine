@@ -149,6 +149,12 @@ streamlit run frontend/app.py
 
 Open `http://localhost:8501`, complete onboarding (resume → optional GitHub → preferences → review → feed).
 
+Manual checks:
+
+- Save / dismiss / apply on feed cards; refresh feed after 5+ feedback actions to see ranking shift
+- Profile: edit preferences, re-upload resume, view saved/dismissed jobs
+- `pytest tests/test_weight_adjuster.py -v`
+
 ## Project structure
 
 - `config/` — settings and logging

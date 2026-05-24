@@ -130,8 +130,9 @@ def render() -> None:
 
     hydrate_feedback(str(st.session_state.candidate_id))
 
+    force_refresh = st.session_state.pop("force_refresh_feed", False)
     try:
-        recs = _load_all_recommendations(refresh=False)
+        recs = _load_all_recommendations(refresh=force_refresh)
     except ApiError as exc:
         st.error(exc.message)
         return
