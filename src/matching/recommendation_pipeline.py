@@ -174,13 +174,16 @@ def _persist_recommendations(
     for item in ranked:
         factor_scores = dict(item.factor_scores)
         factor_scores["_feed_section"] = item.feed_section
+        retrieval_scores = dict(item.retrieval_scores or {})
+        if item.graph_matched_skills:
+            retrieval_scores["graph_matched_skills"] = item.graph_matched_skills
         rows.append(
             Recommendation(
                 candidate_id=candidate_id,
                 job_id=UUID(item.job_id),
                 match_score=item.match_score,
                 factor_scores=factor_scores,
-                retrieval_scores=item.retrieval_scores,
+                retrieval_scores=retrieval_scores,
                 explanation=item.explanation,
                 rank=item.rank,
             ),
@@ -195,6 +198,8 @@ def _ranked_from_stored(rows: list[Recommendation]) -> list[RankedJob]:
             continue
         factor_scores = dict(row.factor_scores or {})
         feed_section = str(factor_scores.pop("_feed_section", "strong_match"))
+        retrieval_scores = dict(row.retrieval_scores or {})
+        graph_matched = retrieval_scores.pop("graph_matched_skills", None)
         ranked.append(
             RankedJob(
                 job_id=str(row.job_id),
@@ -203,7 +208,8 @@ def _ranked_from_stored(rows: list[Recommendation]) -> list[RankedJob]:
                 match_score=row.match_score,
                 match_percentage=int(round(row.match_score * 100)),
                 factor_scores=factor_scores,
-                retrieval_scores=dict(row.retrieval_scores or {}),
+                retrieval_scores=retrieval_scores,
+                graph_matched_skills=graph_matched,
                 explanation=row.explanation,
                 feed_section=feed_section,
             ),

@@ -52,6 +52,11 @@ def _job_response(job: object | None) -> JobResponse | None:
 
 
 def _to_response(candidate_id: UUID, item: RankedJob, rec_id: Optional[UUID] = None) -> RecommendationResponse:
+    graph_skills = item.graph_matched_skills
+    if not graph_skills and item.retrieval_scores:
+        raw = item.retrieval_scores.get("graph_matched_skills")
+        if isinstance(raw, list):
+            graph_skills = raw
     return RecommendationResponse(
         id=rec_id,
         candidate_id=candidate_id,
@@ -60,6 +65,7 @@ def _to_response(candidate_id: UUID, item: RankedJob, rec_id: Optional[UUID] = N
         match_percentage=item.match_percentage,
         factor_scores=item.factor_scores,
         retrieval_scores=item.retrieval_scores,
+        graph_matched_skills=graph_skills,
         explanation=_parse_explanation(item.explanation),
         rank=item.rank,
         feed_section=item.feed_section,

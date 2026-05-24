@@ -59,6 +59,7 @@ class RecommendationResponse(BaseModel):
     match_percentage: int = 0
     factor_scores: dict[str, Any]
     retrieval_scores: Optional[dict[str, Any]] = None
+    graph_matched_skills: Optional[list[dict[str, Any]]] = None
     explanation: Optional[Any] = None
     rank: Optional[int] = None
     feed_section: str = "strong_match"
