@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class JobBase(BaseModel):
@@ -27,6 +27,19 @@ class JobBase(BaseModel):
     source_url: Optional[str] = None
     source_platform: Optional[str] = None
     posted_date: Optional[datetime] = None
+
+    @field_validator("skills_extracted", mode="before")
+    @classmethod
+    def normalize_skills_extracted(cls, value: object) -> Optional[list[Any]]:
+        """Accept legacy dict wrapper {\"skills\": [...]} stored in JSONB."""
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            skills = value.get("skills")
+            return skills if isinstance(skills, list) else []
+        if isinstance(value, list):
+            return value
+        return None
 
 
 class JobCreate(JobBase):
