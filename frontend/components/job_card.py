@@ -78,8 +78,7 @@ def render_job_card(
     rec: dict[str, Any],
     profile_skills: list[dict[str, Any]],
     *,
-    show_feedback: bool = False,
-    feedback_slot: Optional[Any] = None,
+    candidate_id: Optional[str] = None,
     saved_highlight: bool = False,
 ) -> None:
     """Render a single recommendation card."""
@@ -143,5 +142,13 @@ def render_job_card(
             limit = get_frontend_settings().job_description_preview_chars
             st.write(desc[:limit] + ("…" if len(desc) > limit else ""))
 
-        if show_feedback and feedback_slot is not None:
-            feedback_slot()
+        if candidate_id:
+            from frontend.components.feedback_buttons import render_feedback_buttons
+
+            job = rec.get("job") or {}
+            render_feedback_buttons(
+                candidate_id,
+                str(rec.get("job_id")),
+                job.get("source_url"),
+                key_suffix=str(rec.get("job_id")),
+            )

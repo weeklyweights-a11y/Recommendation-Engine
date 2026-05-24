@@ -7,6 +7,7 @@ from typing import Any
 import streamlit as st
 
 from config.settings import get_settings
+from frontend.components.feedback_buttons import hydrate_feedback
 from frontend.components.job_card import render_job_card
 from frontend.config import get_frontend_settings
 from frontend.utils.api_client import ApiError, get_recommendations
@@ -127,6 +128,8 @@ def render() -> None:
                 except ApiError as exc:
                     st.error(exc.message)
 
+    hydrate_feedback(str(st.session_state.candidate_id))
+
     try:
         recs = _load_all_recommendations(refresh=False)
     except ApiError as exc:
@@ -199,6 +202,7 @@ def render() -> None:
             render_job_card(
                 rec,
                 skills,
+                candidate_id=str(st.session_state.candidate_id),
                 saved_highlight=feedback.get(jid) == "saved",
             )
 
@@ -212,6 +216,7 @@ def render() -> None:
             render_job_card(
                 rec,
                 skills,
+                candidate_id=str(st.session_state.candidate_id),
                 saved_highlight=feedback.get(jid) == "saved",
             )
 
