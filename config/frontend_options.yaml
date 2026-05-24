@@ -1,0 +1,47 @@
+job_types:
+  - Full-time
+  - Contract
+  - Part-time
+  - Internship
+work_models:
+  - Remote
+  - Hybrid
+  - On-site
+company_stages:
+  - Pre-seed
+  - Seed
+  - Series A
+  - Series B
+  - Growth Stage
+  - Enterprise
+company_sizes:
+  - "1-10"
+  - "11-50"
+  - "51-200"
+  - "201-1000"
+  - "1000+"
+industries:
+  - Technology
+  - Healthcare
+  - Fintech
+  - E-commerce
+  - SaaS
+  - Education
+  - Manufacturing
+  - Media
+  - Real Estate
+  - Cybersecurity
+  - AI/ML
+  - Climate/Energy
+  - Gaming
+  - Other
+priorities:
+  - Compensation
+  - Equity
+  - Learning & Growth
+  - Mission & Impact
+  - Team & Culture
+  - Title & Seniority
+  - Work-Life Balance
+  - Technical Challenge
+  - Autonomy

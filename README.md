@@ -134,6 +134,21 @@ uvicorn src.api.main:app --host 127.0.0.1 --port 8000
 python scripts/e2e_smoke.py --candidate-id <uuid>
 ```
 
+## Phase 5 runbook
+
+Prerequisites: Phase 1–4 complete, API running, `GOOGLE_AI_API_KEY` set.
+
+```bash
+docker compose up -d
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+
+# Separate terminal — set API URL for Streamlit
+set API_BASE_URL=http://localhost:8000
+streamlit run frontend/app.py
+```
+
+Open `http://localhost:8501`, complete onboarding (resume → optional GitHub → preferences → review → feed).
+
 ## Project structure
 
 - `config/` — settings and logging

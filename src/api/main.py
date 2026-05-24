@@ -15,7 +15,7 @@ from slowapi.util import get_remote_address
 
 from config.settings import get_settings
 from src.api.dependencies import get_embedding_encoder, get_faiss_manager, get_neo4j
-from src.api.routes import candidates, feedback, health, recommendations
+from src.api.routes import candidates, feedback, github, health, recommendations
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,7 @@ def create_app() -> FastAPI:
     api_router = APIRouter(prefix="/api/v1")
     api_router.include_router(health.router)
     api_router.include_router(candidates.router)
+    api_router.include_router(github.router)
     api_router.include_router(recommendations.router)
     api_router.include_router(feedback.router)
     app.include_router(api_router)

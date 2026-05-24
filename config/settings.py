@@ -395,6 +395,66 @@ class AppSettings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
 
+class FrontendSettings(BaseSettings):
+    """Streamlit frontend configuration (Phase 5)."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    api_base_url: str = Field(default="http://localhost:8000", alias="API_BASE_URL")
+    cache_ttl_seconds: int = Field(default=300, alias="STREAMLIT_CACHE_TTL_SECONDS")
+    api_timeout_seconds: float = Field(default=30.0, alias="FRONTEND_API_TIMEOUT_SECONDS")
+    candidate_create_timeout_seconds: float = Field(
+        default=180.0,
+        alias="FRONTEND_CANDIDATE_CREATE_TIMEOUT_SECONDS",
+    )
+    job_description_preview_chars: int = Field(
+        default=300,
+        alias="FRONTEND_JOB_DESCRIPTION_PREVIEW_CHARS",
+    )
+    freshness_hours_green: int = Field(default=48, alias="FRONTEND_FRESHNESS_HOURS_GREEN")
+    freshness_days_normal: int = Field(default=14, alias="FRONTEND_FRESHNESS_DAYS_NORMAL")
+    freshness_days_gray: int = Field(default=14, alias="FRONTEND_FRESHNESS_DAYS_GRAY")
+    match_pct_green_min: int = Field(default=90, alias="FRONTEND_MATCH_PCT_GREEN_MIN")
+    match_pct_blue_min: int = Field(default=75, alias="FRONTEND_MATCH_PCT_BLUE_MIN")
+    match_pct_yellow_min: int = Field(default=60, alias="FRONTEND_MATCH_PCT_YELLOW_MIN")
+    page_icon: str = Field(default="🎯", alias="FRONTEND_PAGE_ICON")
+    frontend_options_path: str = Field(
+        default="./config/frontend_options.yaml",
+        alias="FRONTEND_OPTIONS_PATH",
+    )
+
+
+class FeedbackSettings(BaseSettings):
+    """Feedback loop weight adjustment (Phase 5)."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    min_actions_for_adjustment: int = Field(default=5, alias="FEEDBACK_MIN_ACTIONS_FOR_ADJUSTMENT")
+    weight_min: float = Field(default=0.05, alias="FEEDBACK_WEIGHT_MIN")
+    weight_max: float = Field(default=0.40, alias="FEEDBACK_WEIGHT_MAX")
+    adjustment_rate: float = Field(default=0.03, alias="FEEDBACK_ADJUSTMENT_RATE")
+    stage_concentration_threshold: float = Field(
+        default=0.7,
+        alias="FEEDBACK_STAGE_CONCENTRATION_THRESHOLD",
+    )
+    domain_concentration_threshold: float = Field(
+        default=0.6,
+        alias="FEEDBACK_DOMAIN_CONCENTRATION_THRESHOLD",
+    )
+    domain_diversity_min_industries: int = Field(
+        default=4,
+        alias="FEEDBACK_DOMAIN_DIVERSITY_MIN_INDUSTRIES",
+    )
+    skill_stretch_max_avg: float = Field(default=0.5, alias="FEEDBACK_SKILL_STRETCH_MAX_AVG")
+    skill_overlap_min_avg: float = Field(default=0.7, alias="FEEDBACK_SKILL_OVERLAP_MIN_AVG")
+    semantic_high_min: float = Field(default=0.75, alias="FEEDBACK_SEMANTIC_HIGH_MIN")
+    semantic_factor_moderate_max: float = Field(
+        default=0.65,
+        alias="FEEDBACK_SEMANTIC_FACTOR_MODERATE_MAX",
+    )
+    applied_signal_multiplier: int = Field(default=3, alias="FEEDBACK_APPLIED_SIGNAL_MULTIPLIER")
+
+
 class Settings(BaseSettings):
     """Root settings aggregating all configuration groups."""
 
@@ -419,6 +479,8 @@ class Settings(BaseSettings):
     recommendation: RecommendationSettings = Field(default_factory=RecommendationSettings)
     api: ApiSettings = Field(default_factory=ApiSettings)
     app: AppSettings = Field(default_factory=AppSettings)
+    frontend: FrontendSettings = Field(default_factory=FrontendSettings)
+    feedback: FeedbackSettings = Field(default_factory=FeedbackSettings)
 
 
 @lru_cache

@@ -525,3 +525,47 @@ async def fetch_github_profile(
     finally:
         if owns_client:
             await http_client.aclose()
+
+
+async def fetch_github_preview(
+    username: str,
+    settings: Settings | None = None,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """Fetch a lightweight GitHub preview for onboarding UI."""
+    cfg = settings or get_settings()
+    user = sanitize_github_username(username, settings=cfg)
+    base = cfg.ingestion.github_api_base_url.rstrip("/")
+    owns_client = client is None
+    http_client = client or httpx.AsyncClient(
+        headers=_headers(cfg),
+        timeout=15.0,
+    )
+    try:
+        user_data = await _request_json(http_client, f"{base}/users/{user}", cfg)
+        if user_data is None:
+            raise GitHubUserNotFoundError(f"GitHub user not found: {user}")
+        repos_raw = await _request_json(
+            http_client,
+            f"{base}/users/{user}/repos?sort=updated&per_page=30&type=owner",
+            cfg,
+        )
+        repos = repos_raw if isinstance(repos_raw, list) else []
+        lang_counts: dict[str, int] = {}
+        for repo in repos:
+            if repo.get("fork"):
+                continue
+            language = repo.get("language")
+            if language:
+                lang_counts[str(language)] = lang_counts.get(str(language), 0) + 1
+        top_languages = sorted(lang_counts, key=lambda k: lang_counts[k], reverse=True)[:3]
+        return {
+            "username": user,
+            "name": user_data.get("name") or user,
+            "avatar_url": user_data.get("avatar_url"),
+            "public_repos": int(user_data.get("public_repos") or 0),
+            "top_languages": top_languages,
+        }
+    finally:
+        if owns_client:
+            await http_client.aclose()
