@@ -325,6 +325,16 @@ class RerankerSettings(BaseSettings):
     experience_unknown_score: float = Field(default=0.7, alias="RERANK_EXPERIENCE_UNKNOWN_SCORE")
 
 
+class ExplainerSettings(BaseSettings):
+    """LLM match explanation settings (Phase 4)."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    explain_top_k: int = Field(default=20, alias="EXPLAIN_TOP_K")
+    explain_batch_size: int = Field(default=5, alias="EXPLAIN_BATCH_SIZE")
+    log_token_usage: bool = Field(default=True, alias="EXPLAIN_LOG_TOKEN_USAGE")
+
+
 class HardFilterSettings(BaseSettings):
     """Hard constraint filter settings (Phase 4)."""
 
@@ -369,6 +379,7 @@ class Settings(BaseSettings):
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
     hard_filter: HardFilterSettings = Field(default_factory=HardFilterSettings)
     reranker: RerankerSettings = Field(default_factory=RerankerSettings)
+    explainer: ExplainerSettings = Field(default_factory=ExplainerSettings)
     app: AppSettings = Field(default_factory=AppSettings)
 
 

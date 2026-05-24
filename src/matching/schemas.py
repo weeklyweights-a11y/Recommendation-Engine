@@ -41,6 +41,15 @@ class FilterFunnel(BaseModel):
     most_restrictive_filter: str = "none"
 
 
+class MatchExplanation(BaseModel):
+    """Structured match explanation from LLM or template fallback."""
+
+    summary: str
+    reasons: list[str] = Field(default_factory=list)
+    gaps: str = "None significant"
+    generated_by: str = "llm"
+
+
 class RankedJob(BaseModel):
     """Reranked job with factor breakdown (internal pipeline model)."""
 
