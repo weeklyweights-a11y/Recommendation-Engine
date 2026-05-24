@@ -24,6 +24,8 @@ def get_engine():
             settings.database.database_url,
             echo=False,
             pool_pre_ping=True,
+            pool_size=settings.database.pool_size,
+            max_overflow=settings.database.max_overflow,
         )
         _session_factory = async_sessionmaker(
             _engine,

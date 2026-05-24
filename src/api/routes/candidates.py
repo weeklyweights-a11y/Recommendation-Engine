@@ -18,7 +18,6 @@ from src.api.sanitize import sanitize_text
 from src.api.schemas.candidate import CandidatePreferences, CandidateProfile, CandidateResponse
 from src.db.candidate_repository import upsert_candidate_profile
 from src.db.models import Candidate
-from src.db.recommendation_repository import delete_recommendations_for_candidate
 from src.ingestion.exceptions import FileTooLargeError, UnsupportedFileTypeError
 from src.ingestion.profile_builder import build_profile
 from src.ingestion.resume_parser import validate_resume_file
@@ -36,11 +35,17 @@ async def create_candidate(
     """Upload resume and create a candidate profile."""
     suffix = Path(resume.filename or "").suffix.lower()
     if suffix not in {".pdf", ".docx", ".doc"}:
-        raise HTTPException(status_code=422, detail="Unsupported file type")
+        raise HTTPException(status_code=422, detail="Please upload a PDF or DOCX file")
 
     content = await resume.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=422, detail="The uploaded file appears to be empty")
+    max_mb = settings.ingestion.resume_max_file_bytes // (1024 * 1024)
     if len(content) > settings.ingestion.resume_max_file_bytes:
-        raise HTTPException(status_code=413, detail="Resume file too large")
+        raise HTTPException(
+            status_code=413,
+            detail=f"File size exceeds the {max_mb}MB limit",
+        )
 
     pref_model: Optional[CandidatePreferences] = None
     if preferences:
@@ -66,7 +71,14 @@ async def create_candidate(
     except UnsupportedFileTypeError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Profile build failed: {exc}") from exc
+        from src.ingestion.exceptions import ExtractionFailedError
+
+        if isinstance(exc, ExtractionFailedError) or "read" in str(exc).lower():
+            raise HTTPException(
+                status_code=422,
+                detail="We couldn't read this file. Please try a different version of your resume.",
+            ) from exc
+        raise HTTPException(status_code=500, detail="Profile build failed. Please try again.") from exc
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -81,6 +93,9 @@ async def create_candidate(
             github_username=github_username,
             embeddings=embeddings,
         )
+        from src.cache.invalidation import invalidate_candidate_recommendation_cache
+
+        invalidate_candidate_recommendation_cache(candidate.id)
         return CandidateResponse(
             id=candidate.id,
             name=candidate.name,
@@ -151,10 +166,9 @@ async def update_preferences(
     await session.commit()
     await session.refresh(candidate)
 
-    from src.db.sync_database import get_sync_session
+    from src.cache.invalidation import invalidate_candidate_recommendation_cache
 
-    with get_sync_session() as sync_sess:
-        delete_recommendations_for_candidate(sync_sess, candidate_id)
+    invalidate_candidate_recommendation_cache(candidate_id)
 
     return CandidateResponse(
         id=candidate.id,

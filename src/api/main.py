@@ -6,7 +6,9 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError, TimeoutError as SQLTimeoutError
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -28,7 +30,7 @@ def _parse_cors_origins(raw: str) -> list[str]:
 async def lifespan(app: FastAPI):
     """Warm infrastructure clients on startup."""
     settings = get_settings()
-    logging.basicConfig(level=settings.app.log_level)
+    logging.basicConfig(level=settings.app.log_level, format=settings.cache.log_format)
     try:
         get_faiss_manager(settings)
         get_embedding_encoder(settings)._load_model()
@@ -63,6 +65,24 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.exception_handler(OperationalError)
+    async def postgres_unavailable_handler(_request: Request, _exc: OperationalError) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Database is temporarily unavailable. Please try again shortly."},
+        )
+
+    @app.exception_handler(SQLTimeoutError)
+    async def postgres_timeout_handler(_request: Request, _exc: SQLTimeoutError) -> JSONResponse:
+        return JSONResponse(
+            status_code=504,
+            content={"detail": "The system is under heavy load, please try again."},
+        )
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):

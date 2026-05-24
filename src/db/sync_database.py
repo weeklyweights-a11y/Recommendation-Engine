@@ -17,7 +17,12 @@ def get_sync_engine():
     global _engine, _SessionLocal
     if _engine is None:
         settings = get_settings()
-        _engine = create_engine(settings.database.alembic_database_url, pool_pre_ping=True)
+        _engine = create_engine(
+            settings.database.alembic_database_url,
+            pool_pre_ping=True,
+            pool_size=settings.database.pool_size,
+            max_overflow=settings.database.max_overflow,
+        )
         _SessionLocal = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
     return _engine
 

@@ -91,8 +91,8 @@ def extract_fallback_profile(resume_text: str) -> ExtractedProfile:
         education=[],
         total_years_experience=1.0,
         domains=["general"],
-        role_archetype="generalist",
-        career_trajectory="lateral",
+        role_archetype="unknown",
+        career_trajectory="unknown",
         inferred_preferences=InferredPreferences(),
         summary="Fallback profile extracted without LLM.",
     )

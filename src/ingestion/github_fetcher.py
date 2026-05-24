@@ -278,16 +278,34 @@ def _aggregate_languages(repo_langs: list[dict[str, int]]) -> dict[str, float]:
 def _infer_skills_from_github(
     languages: dict[str, float],
     repos: list[dict[str, Any]],
+    max_skills: int = 0,
 ) -> list[str]:
-    skills = list(languages.keys())
+    """Collect languages, topics, and repo languages from GitHub metadata."""
+    seen: set[str] = set()
+    skills: list[str] = []
+
+    def add(raw: str) -> None:
+        cleaned = str(raw).strip()
+        if not cleaned:
+            return
+        key = cleaned.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        skills.append(cleaned)
+
+    for lang in languages:
+        add(lang)
     for repo in repos:
+        lang = repo.get("language")
+        if lang:
+            add(str(lang))
         for topic in repo.get("topics") or []:
-            if topic and topic not in skills:
-                skills.append(str(topic))
-        name = str(repo.get("name", ""))
-        if name and name not in skills:
-            skills.append(name)
-    return skills[:50]
+            if topic:
+                add(str(topic).replace("-", " "))
+    if max_skills > 0:
+        return skills[:max_skills]
+    return skills
 
 
 def _analysis_from_listing(repo: dict[str, Any]) -> RepoAnalysis:
@@ -345,17 +363,22 @@ def _overall_assessment(repos: list[dict[str, Any]], repos_6mo: int) -> str:
 
 
 def format_github_for_llm(profile: GitHubProfile, settings: Settings | None = None) -> str:
-    """Build a concise GitHub summary for the LLM prompt."""
+    """Build a GitHub summary for the LLM prompt (all languages and inferred skills)."""
     cfg = (settings or get_settings()).ingestion
+    skill_list = ", ".join(profile.inferred_skills) if profile.inferred_skills else "none"
     lines = [
         f"User: {profile.username}",
-        f"Languages: {profile.languages_distribution}",
+        f"Languages (distribution): {profile.languages_distribution}",
         f"Assessment: {profile.overall_assessment}",
-        f"Inferred skills: {', '.join(profile.inferred_skills[:20])}",
+        f"All inferred skills from GitHub ({len(profile.inferred_skills)}): {skill_list}",
+        "Include every language and topic above in the skills array if not already on the resume.",
     ]
-    for repo in profile.top_repos[:5]:
+    for repo in profile.top_repos[:15]:
+        langs = ", ".join(repo.languages) if repo.languages else "n/a"
+        topics = ", ".join(repo.topics[:12]) if repo.topics else "n/a"
         lines.append(
-            f"Repo {repo.name}: {repo.description[:120] if repo.description else ''} "
+            f"Repo {repo.name}: langs=[{langs}] topics=[{topics}] "
+            f"desc={(repo.description[:100] if repo.description else '')} "
             f"signals={repo.production_signals}",
         )
     text = "\n".join(lines)
@@ -519,7 +542,11 @@ async def fetch_github_profile(
                 total_stars=total_stars,
             ),
             top_repos=analyses,
-            inferred_skills=_infer_skills_from_github(lang_dist, filtered),
+            inferred_skills=_infer_skills_from_github(
+                lang_dist,
+                filtered,
+                max_skills=cfg.ingestion.github_max_inferred_skills,
+            ),
             overall_assessment=_overall_assessment(filtered, repos_6mo),
         )
     finally:
