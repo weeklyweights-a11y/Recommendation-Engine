@@ -5,6 +5,13 @@ from src.api.schemas.candidate import (
     CandidatePreferences,
     CandidateProfile,
     CandidateResponse,
+    ESCOLinkedSkill,
+    GitHubSummary,
+    MergedPreferences,
+    PreferenceField,
+    ProfileEducation,
+    ProfileExperience,
+    ProfileSkill,
 )
 from src.api.schemas.feedback import FeedbackCreate, FeedbackResponse
 from src.api.schemas.job import JobBase, JobCreate, JobListResponse, JobResponse
@@ -19,6 +26,13 @@ __all__ = [
     "CandidatePreferences",
     "CandidateProfile",
     "CandidateResponse",
+    "ESCOLinkedSkill",
+    "GitHubSummary",
+    "MergedPreferences",
+    "PreferenceField",
+    "ProfileEducation",
+    "ProfileExperience",
+    "ProfileSkill",
     "FeedbackCreate",
     "FeedbackResponse",
     "JobBase",
