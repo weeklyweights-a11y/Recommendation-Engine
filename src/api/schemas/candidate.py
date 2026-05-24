@@ -161,5 +161,6 @@ class CandidateResponse(BaseModel):
     github_username: Optional[str] = None
     profile: Optional[dict[str, Any]] = None
     preferences: Optional[dict[str, Any]] = None
+    utility_weights: Optional[dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime

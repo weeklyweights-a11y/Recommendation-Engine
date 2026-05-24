@@ -45,7 +45,10 @@ def _materialize_ranked_jobs(ranked: list[RankedJob]) -> list[RankedJob]:
 def _normalize_utility_weights(raw: Optional[dict]) -> Optional[dict[str, float]]:
     if not raw:
         return None
-    cleaned = {k: float(raw[k]) for k in FACTOR_KEYS if k in raw}
+    payload = raw
+    if isinstance(raw, dict) and "weights" in raw and isinstance(raw["weights"], dict):
+        payload = raw["weights"]
+    cleaned = {k: float(payload[k]) for k in FACTOR_KEYS if k in payload}
     if not cleaned:
         return None
     total = sum(cleaned.values())
@@ -74,6 +77,11 @@ def run_recommendation_pipeline(
         candidate = sess.get(Candidate, candidate_id)
         if not candidate or not candidate.profile:
             raise ValueError("Candidate profile not found")
+
+        from src.feedback.service import apply_feedback_weights
+
+        apply_feedback_weights(candidate_id, sess, settings=cfg)
+        candidate = sess.get(Candidate, candidate_id)
 
         profile = CandidateProfile.model_validate(candidate.profile)
         stats = PipelineStats()

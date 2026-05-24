@@ -88,6 +88,7 @@ async def create_candidate(
             github_username=candidate.github_username,
             profile=candidate.profile,
             preferences=candidate.preferences,
+            utility_weights=candidate.utility_weights,
             created_at=candidate.created_at,
             updated_at=candidate.updated_at,
         )
@@ -109,6 +110,7 @@ async def get_candidate(
         github_username=candidate.github_username,
         profile=candidate.profile,
         preferences=candidate.preferences,
+        utility_weights=candidate.utility_weights,
         created_at=candidate.created_at,
         updated_at=candidate.updated_at,
     )
@@ -161,6 +163,7 @@ async def update_preferences(
         github_username=candidate.github_username,
         profile=candidate.profile,
         preferences=candidate.preferences,
+        utility_weights=candidate.utility_weights,
         created_at=candidate.created_at,
         updated_at=candidate.updated_at,
     )

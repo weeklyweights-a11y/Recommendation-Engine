@@ -12,8 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_db_session
 from src.api.schemas.feedback import FeedbackCreate, FeedbackResponse
 from src.db.models import Candidate, Feedback, Job
-from src.db.recommendation_repository import delete_recommendations_for_candidate
-
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
@@ -56,9 +54,10 @@ async def create_feedback(
     await session.refresh(row)
 
     from src.db.sync_database import get_sync_session
+    from src.feedback.service import apply_feedback_weights
 
     with get_sync_session() as sync_sess:
-        delete_recommendations_for_candidate(sync_sess, body.candidate_id)
+        apply_feedback_weights(body.candidate_id, sync_sess)
 
     return FeedbackResponse.model_validate(row)
 
