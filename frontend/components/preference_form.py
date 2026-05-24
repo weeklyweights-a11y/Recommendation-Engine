@@ -7,7 +7,7 @@ from typing import Any, Optional
 import streamlit as st
 
 from config.settings import get_settings
-from frontend.config import load_frontend_options
+from frontend.ui_settings import load_frontend_options
 from frontend.utils.preferences import preferences_to_api_payload, split_locations, split_roles
 
 

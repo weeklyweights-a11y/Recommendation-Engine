@@ -9,8 +9,13 @@ import streamlit as st
 from config.settings import get_settings
 from frontend.components.feedback_buttons import hydrate_feedback
 from frontend.components.job_card import render_job_card
-from frontend.config import get_frontend_settings
+from frontend.ui_settings import get_frontend_settings
 from frontend.utils.api_client import ApiError, get_recommendations
+from frontend.utils.feed_cache import (
+    clear_feed_cache,
+    profile_changed_since_feed,
+    profile_fingerprint,
+)
 from frontend.utils.preferences import normalize_stage, normalize_work_model
 
 
@@ -35,8 +40,11 @@ def _load_all_recommendations(refresh: bool = False) -> list[dict[str, Any]]:
     """Load first page into session; pagination appends."""
     candidate_id = st.session_state.candidate_id
     per_page = get_settings().api.default_per_page
-    if refresh or not st.session_state.get("recommendations"):
-        data = _fetch_recommendations(str(candidate_id), 1, per_page, refresh)
+    must_refresh = refresh or profile_changed_since_feed()
+    if must_refresh:
+        clear_feed_cache()
+    if must_refresh or not st.session_state.get("recommendations"):
+        data = _fetch_recommendations(str(candidate_id), 1, per_page, must_refresh)
         st.session_state.recommendations = data.get("recommendations") or data.get("items") or []
         st.session_state.rec_meta = {
             "pagination": data.get("pagination") or {},
@@ -45,6 +53,9 @@ def _load_all_recommendations(refresh: bool = False) -> list[dict[str, Any]]:
             or data.get("pages", 1),
             "page": 1,
         }
+        st.session_state.recommendations_profile_fp = profile_fingerprint(
+            st.session_state.get("profile"),
+        )
     return st.session_state.recommendations
 
 
@@ -121,16 +132,23 @@ def render() -> None:
             st.rerun()
     with col3:
         if st.button("Refresh Feed", key="feed_refresh"):
-            with st.spinner("Regenerating recommendations…"):
+            with st.spinner("Regenerating recommendations… (may take 1–3 minutes)"):
                 try:
+                    clear_feed_cache()
                     _load_all_recommendations(refresh=True)
-                    st.success("Feed updated.")
+                    st.success("Feed updated from your latest profile.")
                 except ApiError as exc:
                     st.error(exc.message)
 
     hydrate_feedback(str(st.session_state.candidate_id))
 
     force_refresh = st.session_state.pop("force_refresh_feed", False)
+    if profile_changed_since_feed() and not force_refresh:
+        st.info(
+            "Your profile was updated. Refreshing your job matches… "
+            "(this can take 1–3 minutes on first load)."
+        )
+        force_refresh = True
     try:
         recs = _load_all_recommendations(refresh=force_refresh)
     except ApiError as exc:
@@ -164,7 +182,7 @@ def render() -> None:
             key="feed_filter_work",
         )
     with fcol3:
-        from frontend.config import load_frontend_options
+        from frontend.ui_settings import load_frontend_options
 
         filters["company_stages"] = st.multiselect(
             "Company stage",

@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Ensure repo root is on sys.path when Streamlit runs this file directly.
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 import streamlit as st
 
-from frontend.config import get_frontend_settings
+from frontend.ui_settings import get_frontend_settings
 from frontend.pages import feed, onboarding, profile
 
 

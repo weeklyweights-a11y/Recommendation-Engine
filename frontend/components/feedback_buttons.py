@@ -71,8 +71,8 @@ def render_feedback_buttons(
             st.button("Applied", disabled=True, key=f"fb_apply_done_{key_suffix}")
         else:
             if job_source_url:
-                st.link_button("Apply", job_source_url, key=f"fb_apply_link_{key_suffix}")
-            if st.button("Record apply", key=f"fb_apply_{key_suffix}"):
+                st.markdown(f"[Open posting ↗]({job_source_url})")
+            if st.button("Apply", key=f"fb_apply_{key_suffix}"):
                 try:
                     post_feedback(candidate_id, job_id, "applied")
                     feedback[jid] = "applied"
@@ -84,5 +84,5 @@ def render_feedback_buttons(
                         st.rerun()
                     else:
                         st.error(exc.message)
-            if not job_source_url and current != "applied":
+            if not job_source_url:
                 st.caption("No direct link — see job details above.")

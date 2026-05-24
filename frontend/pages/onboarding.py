@@ -10,6 +10,11 @@ import streamlit as st
 
 from config.settings import get_settings
 from frontend.components.preference_form import render_preference_form_api
+from frontend.components.profile_display import (
+    render_experience_section,
+    render_github_summary,
+    render_skills_section,
+)
 from frontend.utils.api_client import (
     ApiError,
     create_candidate,
@@ -17,14 +22,7 @@ from frontend.utils.api_client import (
     github_preview,
     patch_preferences,
 )
-
-
-def _depth_color(score: float) -> str:
-    if score >= 0.7:
-        return "green"
-    if score >= 0.4:
-        return "orange"
-    return "gray"
+from frontend.utils.feed_cache import mark_profile_updated
 
 
 def _step_resume() -> None:
@@ -136,7 +134,7 @@ def _step_build_profile() -> None:
             preferences=st.session_state.get("preferences"),
         )
         st.session_state.candidate_id = result["id"]
-        st.session_state.profile = result.get("profile") or {}
+        mark_profile_updated(result.get("profile") or {})
         st.session_state.candidate_name = result.get("name")
         st.session_state.onboarding_step = 5
         st.rerun()
@@ -191,25 +189,11 @@ def _step_review() -> None:
     st.subheader(name)
     if profile.get("location"):
         st.write(profile["location"])
-    skills = profile.get("skills") or []
-    if skills:
-        st.markdown("**Skills**")
-        chips = []
-        for skill in skills[:20]:
-            if isinstance(skill, dict):
-                label = skill.get("name", "")
-                color = _depth_color(float(skill.get("depth_score") or 0))
-                chips.append(f":{color}[{label}]")
-        st.markdown(" ".join(chips))
-    experience = profile.get("experience") or []
-    if experience:
-        st.markdown("**Experience**")
-        for exp in experience[:3]:
-            if isinstance(exp, dict):
-                st.write(
-                    f"- **{exp.get('title', '')}** at {exp.get('company', '')} "
-                    f"({exp.get('start_date', '')} – {exp.get('end_date') or 'present'})"
-                )
+    if profile.get("summary"):
+        st.markdown("**Career summary**")
+        st.write(profile["summary"])
+    render_skills_section(profile)
+    render_experience_section(profile)
     col1, col2 = st.columns(2)
     with col1:
         if profile.get("role_archetype"):
@@ -218,15 +202,8 @@ def _step_review() -> None:
         if profile.get("career_trajectory"):
             st.info(f"Trajectory: {profile['career_trajectory']}")
     if profile.get("domains"):
-        st.write("Domains: " + ", ".join(profile["domains"][:8]))
-    gh = profile.get("github_summary")
-    if gh and isinstance(gh, dict):
-        st.markdown("**GitHub**")
-        st.write(
-            f"Repos: {gh.get('total_repos', 0)} · "
-            f"Languages: {', '.join(gh.get('top_languages') or [])} · "
-            f"Activity: {gh.get('activity_level', 'n/a')}"
-        )
+        st.write("Domains: " + ", ".join(profile["domains"]))
+    render_github_summary(profile)
     _render_inferred_preferences(profile)
     if st.button("Edit preferences", key="review_edit_prefs"):
         st.session_state.onboarding_step = 3
@@ -257,10 +234,24 @@ def _step_generate_feed() -> None:
         return
     try:
         patch_payload = _build_step5_patch_payload()
-        refresh = bool(patch_payload) or st.session_state.get("step5_preferences_dirty")
         if patch_payload:
             patch_preferences(candidate_id, patch_payload)
-        get_recommendations(candidate_id, refresh=refresh)
+        with st.spinner("Building your personalized feed (1–3 minutes)…"):
+            data = get_recommendations(candidate_id, refresh=True)
+        st.session_state.recommendations = data.get("recommendations") or data.get("items") or []
+        st.session_state.rec_meta = {
+            "pagination": data.get("pagination") or {},
+            "pipeline_stats": data.get("pipeline_stats"),
+            "total_pages": (data.get("pagination") or {}).get("total_pages")
+            or data.get("pages", 1),
+            "page": 1,
+        }
+        from frontend.utils.feed_cache import profile_fingerprint
+
+        st.session_state.recommendations_profile_fp = profile_fingerprint(
+            st.session_state.get("profile"),
+        )
+        st.session_state.force_refresh_feed = False
         st.session_state.onboarding_complete = True
         st.session_state.current_page = "Feed"
         st.success("Your personalized feed is ready!")

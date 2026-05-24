@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from frontend.config import get_frontend_settings
+from frontend.ui_settings import get_frontend_settings
 
 _FACTOR_LABELS: dict[str, str] = {
     "skill_fit": "Skill Fit",

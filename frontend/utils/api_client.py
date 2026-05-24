@@ -8,7 +8,7 @@ from uuid import UUID
 
 import httpx
 
-from frontend.config import get_frontend_settings
+from frontend.ui_settings import get_frontend_settings
 
 
 class ApiError(Exception):

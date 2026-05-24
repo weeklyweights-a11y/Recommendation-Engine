@@ -9,7 +9,9 @@ import streamlit as st
 
 from frontend.components.feedback_buttons import hydrate_feedback
 from frontend.components.preference_form import render_preference_form_api
+from frontend.components.profile_display import render_experience_section
 from frontend.utils.api_client import ApiError, create_candidate, get_candidate, patch_preferences
+from frontend.utils.feed_cache import mark_profile_updated
 from frontend.utils.preferences import preferences_to_api_payload
 
 
@@ -67,6 +69,10 @@ def _render_skills(profile: dict[str, Any]) -> None:
     if not skills:
         return
     st.markdown(f"### Your Skills ({len(skills)})")
+    st.caption(
+        "Depth % reflects resume mention + proficiency + GitHub usage "
+        "(not a self-rating). Expert resume skills ≈70%; intermediate ≈55%."
+    )
     by_category: dict[str, list[dict[str, Any]]] = {}
     for skill in skills:
         if not isinstance(skill, dict):
@@ -86,9 +92,12 @@ def _render_skills(profile: dict[str, Any]) -> None:
                 border = "blue"
             esco = skill.get("esco_label")
             tip = f"ESCO: {esco}" if esco else ""
+            prof = skill.get("proficiency") or ""
+            prof_bit = f", {prof}" if prof else ""
             st.markdown(
                 f"<span style='border:2px solid {border}; padding:4px 8px; "
-                f"margin:2px; display:inline-block'>{name} ({depth:.0%})</span>",
+                f"margin:2px; display:inline-block' title='Depth from resume/GitHub signals'>"
+                f"{name} ({depth:.0%}{prof_bit})</span>",
                 unsafe_allow_html=True,
             )
             if tip:
@@ -99,26 +108,8 @@ def _render_experience(profile: dict[str, Any]) -> None:
     experience = profile.get("experience") or []
     if not experience:
         return
-    years = profile.get("total_years_experience")
-    st.markdown(f"### Your Experience ({years:.1f} years)" if years else "### Your Experience")
-    for exp in experience:
-        if not isinstance(exp, dict):
-            continue
-        st.markdown(f"**{exp.get('title', '')}** — {exp.get('company', '')}")
-        st.caption(
-            f"{exp.get('start_date', '')} – {exp.get('end_date') or 'present'} "
-            f"({exp.get('duration_months', '')} mo)"
-        )
-        tags = [
-            exp.get("domain"),
-            exp.get("company_stage_estimate"),
-            exp.get("role_type"),
-        ]
-        tags = [t for t in tags if t]
-        if tags:
-            st.write(" · ".join(tags))
-        for ach in (exp.get("key_achievements") or [])[:4]:
-            st.markdown(f"- {ach}")
+    st.markdown("### Your Experience")
+    render_experience_section(profile)
 
 
 def _render_github(profile: dict[str, Any]) -> None:
@@ -257,8 +248,12 @@ def render() -> None:
                     preferences=st.session_state.get("preferences"),
                 )
                 st.session_state.candidate_id = result["id"]
-                st.session_state.profile = result.get("profile")
-                st.success("Profile updated. Refresh your feed to see new recommendations.")
+                mark_profile_updated(result.get("profile") or {})
+                st.session_state.force_refresh_feed = True
+                st.success(
+                    "Profile updated. Open your feed — matches will regenerate "
+                    "from your latest skills (1–3 minutes)."
+                )
                 _load_profile()
             except ApiError as exc:
                 st.error(exc.message)
