@@ -7,13 +7,21 @@ from src.embeddings.encoder import (
     get_encoder,
     serialize_embedding,
 )
-from src.embeddings.schemas import CandidateEmbeddings
+from src.embeddings.faiss_manager import FAISSManager
+from src.embeddings.job_embedder import embed_job, embed_job_record, extract_job_fields
+from src.embeddings.schemas import CandidateEmbeddings, JobEmbeddings, JobFields
 
 __all__ = [
     "CandidateEmbeddings",
     "EmbeddingEncoder",
+    "FAISSManager",
+    "JobEmbeddings",
+    "JobFields",
     "deserialize_embedding",
     "embed_candidate",
+    "embed_job",
+    "embed_job_record",
+    "extract_job_fields",
     "get_encoder",
     "serialize_embedding",
 ]

@@ -19,6 +19,7 @@ from config.logging import setup_logging
 from config.settings import get_settings
 from src.db.models import Job
 from src.db.sync_database import get_sync_session
+from src.embeddings.skills_extracted_parser import parse_skills_extracted, skills_to_search_text
 from src.matching.bm25_retriever import BM25Retriever
 
 logger = logging.getLogger(__name__)
@@ -42,11 +43,10 @@ INDEX_MAPPING = {
 
 
 def _skills_text(job: Job) -> str:
-    """Build searchable skills text from job fields."""
-    if job.skills_extracted:
-        if isinstance(job.skills_extracted, list):
-            return " ".join(str(s) for s in job.skills_extracted)
-        return str(job.skills_extracted)
+    """Build searchable skills text from job fields (wrapper or legacy list)."""
+    skills = parse_skills_extracted(job.skills_extracted)
+    if skills:
+        return skills_to_search_text(skills)
     return (job.description or "")[:2000]
 
 
@@ -66,10 +66,12 @@ def job_to_doc(job: Job) -> dict[str, Any]:
     }
 
 
-def load_job_documents(limit: int | None) -> list[tuple[str, dict[str, Any]]]:
+def load_job_documents(limit: int | None, only_embedded: bool = False) -> list[tuple[str, dict[str, Any]]]:
     """Load job documents from PostgreSQL while session is active."""
     with get_sync_session() as session:
         stmt = select(Job).order_by(Job.created_at)
+        if only_embedded:
+            stmt = stmt.where(Job.is_embedded.is_(True))
         if limit:
             stmt = stmt.limit(limit)
         return [(str(job.id), job_to_doc(job)) for job in session.scalars(stmt)]
@@ -87,6 +89,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Index jobs into Elasticsearch")
     parser.add_argument("--recreate", action="store_true")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument(
+        "--only-embedded",
+        action="store_true",
+        help="Index only jobs with is_embedded=true",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -106,7 +113,7 @@ def main() -> None:
         logger.info("Recreating index %s", index_name)
         recreate_index(client, index_name)
 
-    job_docs = load_job_documents(args.limit)
+    job_docs = load_job_documents(args.limit, only_embedded=args.only_embedded)
     logger.info("Indexing %s jobs (postgres total: %s)", len(job_docs), pg_count)
 
     if job_docs:

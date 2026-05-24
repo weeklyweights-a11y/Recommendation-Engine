@@ -168,14 +168,47 @@ class SkillGraphSettings(BaseSettings):
     skill_cache_size: int = Field(default=10000, alias="SKILL_CACHE_SIZE")
 
 
+class JobEmbeddingSettings(BaseSettings):
+    """Batch job embedding pipeline settings (Phase 3)."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    job_embed_batch_size: int = Field(default=64, alias="JOB_EMBED_BATCH_SIZE")
+    job_llm_batch_size: int = Field(default=10, alias="JOB_LLM_BATCH_SIZE")
+    job_skill_dict_path: str = Field(
+        default="./data/esco/supplemental_aliases.csv",
+        alias="JOB_SKILL_DICT_PATH",
+    )
+    faiss_flat_ip_max_jobs: int = Field(default=50_000, alias="FAISS_FLAT_IP_MAX_JOBS")
+    faiss_index_type: str = Field(default="", alias="FAISS_INDEX_TYPE")
+    faiss_ivf_nlist: int = Field(default=0, alias="FAISS_IVF_NLIST")
+    faiss_nprobe: int = Field(default=10, alias="FAISS_NPROBE")
+
+
 class RetrievalSettings(BaseSettings):
     """Retrieval pipeline settings."""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     bm25_top_k: int = Field(default=500, alias="BM25_TOP_K")
+    hybrid_top_k: int = Field(default=500, alias="HYBRID_TOP_K")
     es_index_batch_size: int = Field(default=500, alias="ES_INDEX_BATCH_SIZE")
     kaggle_batch_size: int = Field(default=1000, alias="KAGGLE_BATCH_SIZE")
+    vector_skill_weight: float = Field(default=0.35, alias="VECTOR_SKILL_WEIGHT")
+    vector_domain_weight: float = Field(default=0.25, alias="VECTOR_DOMAIN_WEIGHT")
+    vector_role_weight: float = Field(default=0.25, alias="VECTOR_ROLE_WEIGHT")
+    vector_environment_weight: float = Field(default=0.15, alias="VECTOR_ENVIRONMENT_WEIGHT")
+    vector_overfetch_multiplier: int = Field(default=2, alias="VECTOR_OVERFETCH_MULTIPLIER")
+    vector_zero_norm_epsilon: float = Field(default=1e-6, alias="VECTOR_ZERO_NORM_EPSILON")
+    graph_expansion_max_hops: int = Field(default=2, alias="GRAPH_EXPANSION_MAX_HOPS")
+    graph_direct_match_weight: float = Field(default=1.0, alias="GRAPH_DIRECT_MATCH_WEIGHT")
+    graph_one_hop_weight: float = Field(default=0.5, alias="GRAPH_ONE_HOP_WEIGHT")
+    graph_two_hop_weight: float = Field(default=0.25, alias="GRAPH_TWO_HOP_WEIGHT")
+    fusion_bm25_weight: float = Field(default=0.25, alias="FUSION_BM25_WEIGHT")
+    fusion_vector_weight: float = Field(default=0.45, alias="FUSION_VECTOR_WEIGHT")
+    fusion_graph_weight: float = Field(default=0.30, alias="FUSION_GRAPH_WEIGHT")
+    fusion_strategy: Literal["rrf", "weighted_sum"] = Field(default="rrf", alias="FUSION_STRATEGY")
+    rrf_k: int = Field(default=60, alias="RRF_K")
 
 
 class IngestionSettings(BaseSettings):
@@ -250,6 +283,7 @@ class Settings(BaseSettings):
     paths: PathSettings = Field(default_factory=PathSettings)
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
     skill_graph: SkillGraphSettings = Field(default_factory=SkillGraphSettings)
+    job_embedding: JobEmbeddingSettings = Field(default_factory=JobEmbeddingSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
     app: AppSettings = Field(default_factory=AppSettings)
