@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -73,7 +73,10 @@ class LLMSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    google_ai_api_key: str = Field(default="", alias="GOOGLE_AI_API_KEY")
+    google_ai_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("GOOGLE_AI_API_KEY", "GOOGLE_API_KEY"),
+    )
     llm_model_pro: str = Field(
         default="gemini-2.5-pro",
         alias="LLM_MODEL_PRO",
@@ -175,6 +178,52 @@ class RetrievalSettings(BaseSettings):
     kaggle_batch_size: int = Field(default=1000, alias="KAGGLE_BATCH_SIZE")
 
 
+class IngestionSettings(BaseSettings):
+    """Resume parsing, GitHub fetch, and profile merge settings."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    resume_max_file_bytes: int = Field(default=10485760, alias="RESUME_MAX_FILE_BYTES")
+    resume_min_text_chars: int = Field(default=50, alias="RESUME_MIN_TEXT_CHARS")
+    resume_max_text_chars: int = Field(default=100000, alias="RESUME_MAX_TEXT_CHARS")
+    github_api_base_url: str = Field(
+        default="https://api.github.com",
+        alias="GITHUB_API_BASE_URL",
+    )
+    github_max_repos: int = Field(default=300, alias="GITHUB_MAX_REPOS")
+    github_top_repos_languages: int = Field(default=20, alias="GITHUB_TOP_REPOS_LANGUAGES")
+    github_top_repos_readme: int = Field(default=10, alias="GITHUB_TOP_REPOS_README")
+    github_top_repos_signals: int = Field(default=20, alias="GITHUB_TOP_REPOS_SIGNALS")
+    github_rate_limit_warn_threshold: int = Field(
+        default=10,
+        alias="GITHUB_RATE_LIMIT_WARN_THRESHOLD",
+    )
+    github_rate_limit_max_retries: int = Field(default=3, alias="GITHUB_RATE_LIMIT_MAX_RETRIES")
+    github_fork_recency_days: int = Field(default=180, alias="GITHUB_FORK_RECENCY_DAYS")
+    github_llm_summary_max_chars: int = Field(default=4000, alias="GITHUB_LLM_SUMMARY_MAX_CHARS")
+    github_username_max_length: int = Field(default=39, alias="GITHUB_USERNAME_MAX_LENGTH")
+    skill_depth_resume_mention: float = Field(default=0.25, alias="SKILL_DEPTH_RESUME_MENTION")
+    skill_depth_resume_proficiency: float = Field(
+        default=0.15,
+        alias="SKILL_DEPTH_RESUME_PROFICIENCY",
+    )
+    skill_depth_github_presence: float = Field(default=0.25, alias="SKILL_DEPTH_GITHUB_PRESENCE")
+    skill_depth_github_recency: float = Field(default=0.15, alias="SKILL_DEPTH_GITHUB_RECENCY")
+    skill_depth_github_production: float = Field(
+        default=0.10,
+        alias="SKILL_DEPTH_GITHUB_PRODUCTION",
+    )
+    skill_depth_github_volume: float = Field(default=0.10, alias="SKILL_DEPTH_GITHUB_VOLUME")
+    skill_depth_base_resume_only: float = Field(default=0.3, alias="SKILL_DEPTH_BASE_RESUME_ONLY")
+    skill_depth_base_github_only: float = Field(default=0.2, alias="SKILL_DEPTH_BASE_GITHUB_ONLY")
+    skill_expansion_max_hops_embed: int = Field(default=1, alias="SKILL_EXPANSION_MAX_HOPS_EMBED")
+    embedding_device: Literal["auto", "cpu", "cuda"] = Field(
+        default="auto",
+        alias="EMBEDDING_DEVICE",
+    )
+    embedding_chunk_token_limit: int = Field(default=512, alias="EMBEDDING_CHUNK_TOKEN_LIMIT")
+
+
 class AppSettings(BaseSettings):
     """Application server settings."""
 
@@ -202,6 +251,7 @@ class Settings(BaseSettings):
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
     skill_graph: SkillGraphSettings = Field(default_factory=SkillGraphSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
+    ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
     app: AppSettings = Field(default_factory=AppSettings)
 
 
