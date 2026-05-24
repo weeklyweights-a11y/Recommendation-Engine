@@ -127,6 +127,13 @@ set RUN_INTEGRATION=1
 pytest tests/test_api.py -m integration -v
 ```
 
+API smoke test (server must be running on port 8000):
+
+```bash
+uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+python scripts/e2e_smoke.py --candidate-id <uuid>
+```
+
 ## Project structure
 
 - `config/` — settings and logging

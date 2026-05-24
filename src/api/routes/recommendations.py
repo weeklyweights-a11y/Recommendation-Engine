@@ -24,7 +24,11 @@ from src.api.schemas.recommendation import (
 from src.db.models import Candidate
 from src.db.recommendation_repository import load_cached_recommendations
 from src.db.sync_database import get_sync_session
-from src.matching.recommendation_pipeline import _ranked_from_stored, run_recommendation_pipeline
+from src.matching.recommendation_pipeline import (
+    _materialize_ranked_jobs,
+    _ranked_from_stored,
+    run_recommendation_pipeline,
+)
 from src.matching.schemas import PipelineResult, RankedJob
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
@@ -39,8 +43,15 @@ def _parse_explanation(raw: Optional[str]) -> Any:
         return raw
 
 
+def _job_response(job: object | None) -> JobResponse | None:
+    if job is None:
+        return None
+    if isinstance(job, JobResponse):
+        return job
+    return JobResponse.model_validate(job)
+
+
 def _to_response(candidate_id: UUID, item: RankedJob, rec_id: Optional[UUID] = None) -> RecommendationResponse:
-    job = item.job
     return RecommendationResponse(
         id=rec_id,
         candidate_id=candidate_id,
@@ -52,7 +63,7 @@ def _to_response(candidate_id: UUID, item: RankedJob, rec_id: Optional[UUID] = N
         explanation=_parse_explanation(item.explanation),
         rank=item.rank,
         feed_section=item.feed_section,
-        job=JobResponse.model_validate(job) if job is not None else None,
+        job=_job_response(item.job),
     )
 
 
@@ -99,7 +110,7 @@ async def get_recommendations(
             cached_rows = load_cached_recommendations(sync_sess, candidate_id, settings=settings)
             if cached_rows:
                 result = PipelineResult(
-                    ranked_jobs=_ranked_from_stored(cached_rows),
+                    ranked_jobs=_materialize_ranked_jobs(_ranked_from_stored(cached_rows)),
                     from_cache=True,
                 )
         if result is None:

@@ -31,6 +31,17 @@ from src.matching.schemas import PipelineResult, PipelineStats, PipelineTiming, 
 logger = logging.getLogger(__name__)
 
 
+def _materialize_ranked_jobs(ranked: list[RankedJob]) -> list[RankedJob]:
+    """Convert attached ORM Job rows to JobResponse while the session is active."""
+    from src.api.schemas.job import JobResponse
+    from src.db.models import Job
+
+    for item in ranked:
+        if isinstance(item.job, Job):
+            item.job = JobResponse.model_validate(item.job)
+    return ranked
+
+
 def _normalize_utility_weights(raw: Optional[dict]) -> Optional[dict[str, float]]:
     if not raw:
         return None
@@ -57,7 +68,7 @@ def run_recommendation_pipeline(
         if not refresh:
             cached = load_cached_recommendations(sess, candidate_id, settings=cfg)
             if cached:
-                ranked = _ranked_from_stored(cached)
+                ranked = _materialize_ranked_jobs(_ranked_from_stored(cached))
                 return PipelineResult(ranked_jobs=ranked, from_cache=True)
 
         candidate = sess.get(Candidate, candidate_id)
@@ -135,7 +146,10 @@ def run_recommendation_pipeline(
             timing.explain_ms,
             timing.total_ms,
         )
-        return PipelineResult(ranked_jobs=ranked[:store_k], stats=stats)
+        return PipelineResult(
+            ranked_jobs=_materialize_ranked_jobs(ranked[:store_k]),
+            stats=stats,
+        )
 
     if session is not None:
         return _run(session)
