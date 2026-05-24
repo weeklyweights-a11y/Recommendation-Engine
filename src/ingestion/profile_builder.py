@@ -27,6 +27,8 @@ from src.ingestion.exceptions import ExtractionFailedError, GitHubUserNotFoundEr
 from src.ingestion.fallback_extractor import extract_fallback_profile
 from src.ingestion.github_fetcher import fetch_github_profile, format_github_for_llm
 from src.ingestion.llm_extractor import extract_profile
+from src.ingestion.skill_filters import is_plausible_skill
+from src.ingestion.skill_supplement import enrich_extracted_skills
 from src.ingestion.resume_parser import parse_resume, validate_resume_file
 from src.ingestion.schemas import ExtractedProfile, ExtractedSkill, GitHubProfile
 from src.knowledge_graph.entity_linker import link_skills
@@ -195,7 +197,7 @@ def _build_github_summary(github: GitHubProfile) -> GitHubSummary:
         total_repos=github.activity_metrics.total_repos,
         repos_last_6_months=github.activity_metrics.repos_last_6_months,
         followers=github.followers,
-        inferred_skills=github.inferred_skills[:20],
+        inferred_skills=list(github.inferred_skills),
         top_repo_names=[repo.name for repo in github.top_repos[:5]],
     )
 
@@ -373,6 +375,7 @@ def _build_profile_skills(
             ),
         )
 
+    profile_skills = [s for s in profile_skills if is_plausible_skill(s.name)]
     profile_skills.sort(key=lambda s: s.depth_score, reverse=True)
     return profile_skills, esco_linked
 
@@ -406,6 +409,9 @@ async def _assemble_profile(
     except ExtractionFailedError as exc:
         logger.warning("LLM extraction failed, using fallback: %s", exc)
         extracted = extract_fallback_profile(resume_text)
+
+    extracted = enrich_extracted_skills(extracted, resume_text, github_profile, settings=cfg)
+    logger.info("Profile skills after enrichment: %s", len(extracted.skills))
 
     skills, esco_linked = _build_profile_skills(extracted, github_profile, cfg)
     experience = _sort_experience(

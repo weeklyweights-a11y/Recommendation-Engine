@@ -60,6 +60,7 @@ class RecommendationResponse(BaseModel):
     factor_scores: dict[str, Any]
     retrieval_scores: Optional[dict[str, Any]] = None
     graph_matched_skills: Optional[list[dict[str, Any]]] = None
+    skill_match_display: Optional[dict[str, Any]] = None
     explanation: Optional[Any] = None
     rank: Optional[int] = None
     feed_section: str = "strong_match"

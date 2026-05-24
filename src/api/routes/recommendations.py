@@ -57,6 +57,11 @@ def _to_response(candidate_id: UUID, item: RankedJob, rec_id: Optional[UUID] = N
         raw = item.retrieval_scores.get("graph_matched_skills")
         if isinstance(raw, list):
             graph_skills = raw
+    skill_display = item.skill_match_display
+    if not skill_display and item.retrieval_scores:
+        raw_display = item.retrieval_scores.get("skill_match_display")
+        if isinstance(raw_display, dict):
+            skill_display = raw_display
     return RecommendationResponse(
         id=rec_id,
         candidate_id=candidate_id,
@@ -66,6 +71,7 @@ def _to_response(candidate_id: UUID, item: RankedJob, rec_id: Optional[UUID] = N
         factor_scores=item.factor_scores,
         retrieval_scores=item.retrieval_scores,
         graph_matched_skills=graph_skills,
+        skill_match_display=skill_display,
         explanation=_parse_explanation(item.explanation),
         rank=item.rank,
         feed_section=item.feed_section,

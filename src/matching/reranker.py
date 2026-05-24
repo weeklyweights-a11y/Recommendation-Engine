@@ -17,9 +17,11 @@ from src.api.schemas.candidate import CandidateProfile, MergedPreferences
 from src.db.models import Job
 from src.embeddings.job_field_extractor import extract_job_fields_rule
 from src.embeddings.skills_extracted_parser import parse_skills_extracted
+from src.knowledge_graph.entity_linker import link_skills
 from src.matching.graph_retriever import GraphRetriever
 from src.matching.preference_utils import pref_list
 from src.matching.schemas import FusedResult, RankedJob, SkillOverlap
+from src.matching.skill_match_display import build_skill_match_display
 
 logger = logging.getLogger(__name__)
 
@@ -89,10 +91,29 @@ class Reranker:
         return [s.esco_uri for s in skills if s.esco_uri]
 
     def _candidate_skill_uris(self, profile: CandidateProfile) -> list[str]:
-        uris = [s.esco_uri for s in profile.esco_linked_skills if s.esco_uri]
+        seen: set[str] = set()
+        uris: list[str] = []
+        for skill in profile.esco_linked_skills:
+            if skill.esco_uri and skill.esco_uri not in seen:
+                seen.add(skill.esco_uri)
+                uris.append(skill.esco_uri)
+        for skill in profile.skills:
+            if skill.esco_uri and skill.esco_uri not in seen:
+                seen.add(skill.esco_uri)
+                uris.append(skill.esco_uri)
         if uris:
             return uris
-        return [s.esco_uri for s in profile.skills if getattr(s, "esco_uri", None)]
+        missing_names = [s.name for s in profile.skills if s.name and not s.esco_uri]
+        if not missing_names:
+            return []
+        try:
+            for name, link in zip(missing_names, link_skills(missing_names)):
+                if link and link.esco_uri and link.esco_uri not in seen:
+                    seen.add(link.esco_uri)
+                    uris.append(link.esco_uri)
+        except Exception as exc:
+            logger.warning("On-the-fly skill linking failed: %s", exc)
+        return uris
 
     def _compute_skill_fit(
         self,
@@ -382,6 +403,7 @@ class Reranker:
             }
             utility = sum(weights[k] * factors[k] for k in FACTOR_KEYS)
             utility = self._freshness_boost(job, utility)
+            skill_display = build_skill_match_display(profile, job, overlap)
             scored.append(
                 RankedJob(
                     job_id=fused.job_id,
@@ -398,6 +420,7 @@ class Reranker:
                     },
                     vector_dimension_scores=fused.vector_dimension_scores,
                     graph_matched_skills=fused.graph_matched_skills,
+                    skill_match_display=skill_display,
                 ),
             )
 

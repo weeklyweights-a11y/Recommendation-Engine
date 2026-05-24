@@ -192,7 +192,7 @@ def extract_profile_with_usage(
 
     gemini_client = client or genai.Client(api_key=api_key)
     model = cfg.llm.llm_model_pro
-    max_tokens = cfg.llm.llm_max_tokens
+    max_tokens = cfg.llm.llm_extraction_max_tokens
     user_prompt = _build_user_prompt(resume_text, github_summary)
 
     last_error: Optional[Exception] = None

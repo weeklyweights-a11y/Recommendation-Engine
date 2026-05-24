@@ -19,7 +19,8 @@ Required field order in your JSON (most important first):
 1. name, email, phone, location (strings or null)
 2. experience: array of EVERY job on the resume — at least one entry required
    Each entry: company, title, start_date (YYYY-MM), end_date (YYYY-MM or "present"), duration_months,
-   description (max 250 characters), domain, company_size_estimate, company_stage_estimate, role_type, key_achievements
+   description (what they did — up to 400 characters, be specific), domain, company_size_estimate,
+   company_stage_estimate, role_type, key_achievements (array of bullet strings, all notable outcomes)
    - company_size_estimate: 1-10, 11-50, 51-200, 201-1000, 1000+
    - company_stage_estimate: pre-seed, seed, series-a, series-b, growth, enterprise
    - role_type: ic, tech-lead, manager, founding, co-founder, executive
@@ -30,9 +31,15 @@ Required field order in your JSON (most important first):
 7. role_archetype: founding_builder, platform_engineer, research_scientist, product_engineer, specialist, generalist, manager
 8. career_trajectory: ascending, lateral, career_changer, early_career, seasoned
 9. inferred_preferences: {{preferred_company_stage, preferred_team_size, preferred_work_style, likely_looking_for}}
-10. skills: array — cap at 25 skills; keep each context under 80 characters
+10. skills: array — extract EVERY skill with no upper limit (never stop at 20; typical senior profiles have 35–80 skills).
+   Include all of the following if present:
+   programming languages, frameworks, libraries, databases, cloud platforms, DevOps tools, ML/AI stacks,
+   data tools, methodologies, certifications, and soft skills explicitly listed or clearly used in roles.
+   Do not summarize or group (list "Python" and "pandas" separately). Do not omit skills to save space.
+   If GitHub data is provided, add every language, topic, and technology from repos not already listed.
    - category: programming_language, framework, tool, platform, methodology, domain_knowledge, soft_skill, other
    - proficiency: beginner, intermediate, advanced, expert
+   - context: brief note (under 80 characters) where the skill was used, optional
 """
 
 GITHUB_SECTION_TEMPLATE = """
@@ -43,12 +50,12 @@ Use this to validate and enhance skill proficiency ratings — if a skill appear
 
 RETRY_USER_PROMPT = (
     "Your previous response was incomplete or invalid. Return ONLY valid JSON with ALL required "
-    "sections: experience (every job), education, total_years_experience, summary, then skills "
-    "(max 25, short context). Do not omit experience or summary."
+    "sections: experience (every job with description and key_achievements), education, "
+    "total_years_experience, summary, then every skill (no limit). Do not omit experience or summary."
 )
 
 COMPACT_RETRY_PROMPT = (
     "Return compact valid JSON only. Required: experience array (all jobs), education, "
     "total_years_experience, summary, domains, role_archetype, career_trajectory, "
-    "inferred_preferences, then up to 20 skills with brief context."
+    "inferred_preferences, then every skill with brief context."
 )
