@@ -35,10 +35,16 @@ class BM25Retriever:
         query_text: str,
         top_k: Optional[int] = None,
         filters: Optional[dict[str, Any]] = None,
+        allowed_job_ids: Optional[set[str]] = None,
     ) -> list[ScoredJob]:
         """Run BM25 search and return normalized ScoredJob results."""
         k = top_k if top_k is not None else self._settings.retrieval.bm25_top_k
-        body = self._build_query(query_text, k, filters or {})
+        merged_filters = dict(filters or {})
+        if allowed_job_ids is not None:
+            cap = self._settings.retrieval.es_terms_filter_max
+            if len(allowed_job_ids) <= cap:
+                merged_filters["job_ids"] = list(allowed_job_ids)
+        body = self._build_query(query_text, k, merged_filters)
         try:
             response = self._client.search(index=self._index, body=body)
         except (ApiError, TransportError) as exc:
@@ -100,6 +106,8 @@ class BM25Retriever:
             filter_clauses.append({"term": {"location": location}})
         if posted_range := filters.get("posted_date"):
             filter_clauses.append({"range": {"posted_date": posted_range}})
+        if job_ids := filters.get("job_ids"):
+            filter_clauses.append({"terms": {"job_id": job_ids}})
 
         query: dict[str, Any] = {
             "size": top_k,

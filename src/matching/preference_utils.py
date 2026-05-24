@@ -82,3 +82,49 @@ def should_apply_company_size_filter(sizes: list[str]) -> bool:
 def should_apply_company_stage_filter(stages: list[str]) -> bool:
     """Skip company stage filter when unset."""
     return bool(stages)
+
+
+def patch_merged_preferences(
+    merged: MergedPreferences,
+    explicit: "CandidatePreferences",
+) -> MergedPreferences:
+    """Apply explicit preference overrides onto merged profile preferences."""
+    from src.api.schemas.candidate import CandidatePreferences, PreferenceField
+
+    def _apply_list(explicit_values: list[str], target_attr: str) -> None:
+        if explicit_values:
+            setattr(
+                merged,
+                target_attr,
+                PreferenceField(value=explicit_values, source="explicit"),
+            )
+
+    data = explicit.model_dump(exclude_unset=True)
+    if "job_types" in data:
+        _apply_list(explicit.job_types, "job_types")
+    if "work_models" in data:
+        _apply_list(explicit.work_models, "work_models")
+    if "locations" in data:
+        _apply_list(explicit.locations, "locations")
+    if "company_stages" in data:
+        _apply_list(explicit.company_stages, "company_stages")
+    if "company_sizes" in data:
+        _apply_list(explicit.company_sizes, "company_sizes")
+    if "target_roles" in data:
+        _apply_list(explicit.target_roles, "target_roles")
+    if "industries_target" in data:
+        _apply_list(explicit.industries_target, "target_industries")
+    if "industries_avoid" in data:
+        _apply_list(explicit.industries_avoid, "avoid_industries")
+    if "priority_ranking" in data:
+        _apply_list(explicit.priority_ranking, "priorities")
+    if "visa_sponsorship_needed" in data and explicit.visa_sponsorship_needed is not None:
+        merged.needs_sponsorship = PreferenceField(
+            value=explicit.visa_sponsorship_needed,
+            source="explicit",
+        )
+    if "salary_min" in data and explicit.salary_min is not None:
+        merged.salary_min = PreferenceField(value=explicit.salary_min, source="explicit")
+    if "salary_max" in data and explicit.salary_max is not None:
+        merged.salary_max = PreferenceField(value=explicit.salary_max, source="explicit")
+    return merged

@@ -217,6 +217,7 @@ class RetrievalSettings(BaseSettings):
     fusion_graph_weight: float = Field(default=0.30, alias="FUSION_GRAPH_WEIGHT")
     fusion_strategy: Literal["rrf", "weighted_sum"] = Field(default="rrf", alias="FUSION_STRATEGY")
     rrf_k: int = Field(default=60, alias="RRF_K")
+    es_terms_filter_max: int = Field(default=5000, alias="RETRIEVAL_ES_TERMS_FILTER_MAX")
 
 
 class IngestionSettings(BaseSettings):
@@ -348,6 +349,36 @@ class HardFilterSettings(BaseSettings):
     )
 
 
+class RecommendationSettings(BaseSettings):
+    """Recommendation pipeline cache and limits."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    cache_ttl_seconds: int = Field(default=3600, alias="RECOMMENDATION_CACHE_TTL_SECONDS")
+    rerank_top_k: int = Field(default=50, alias="RECOMMENDATION_RERANK_TOP_K")
+    store_top_k: int = Field(default=50, alias="RECOMMENDATION_STORE_TOP_K")
+    explain_top_k: int = Field(default=20, alias="RECOMMENDATION_EXPLAIN_TOP_K")
+
+
+class ApiSettings(BaseSettings):
+    """FastAPI server settings."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    cors_origins: str = Field(
+        default="http://localhost:8501",
+        alias="CORS_ORIGINS",
+    )
+    rate_limit: str = Field(default="100/minute", alias="API_RATE_LIMIT")
+    default_page: int = Field(default=1, alias="API_DEFAULT_PAGE")
+    default_per_page: int = Field(default=20, alias="API_DEFAULT_PER_PAGE")
+    max_per_page: int = Field(default=100, alias="API_MAX_PER_PAGE")
+    preference_text_max_length: int = Field(
+        default=500,
+        alias="API_PREFERENCE_TEXT_MAX_LENGTH",
+    )
+
+
 class AppSettings(BaseSettings):
     """Application server settings."""
 
@@ -380,6 +411,8 @@ class Settings(BaseSettings):
     hard_filter: HardFilterSettings = Field(default_factory=HardFilterSettings)
     reranker: RerankerSettings = Field(default_factory=RerankerSettings)
     explainer: ExplainerSettings = Field(default_factory=ExplainerSettings)
+    recommendation: RecommendationSettings = Field(default_factory=RecommendationSettings)
+    api: ApiSettings = Field(default_factory=ApiSettings)
     app: AppSettings = Field(default_factory=AppSettings)
 
 

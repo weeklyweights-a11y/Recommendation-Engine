@@ -68,6 +68,33 @@ class RankedJob(BaseModel):
     explanation: Optional[str] = None
 
 
+class PipelineTiming(BaseModel):
+    """Per-stage pipeline timings in milliseconds."""
+
+    hard_filter_ms: float = 0.0
+    retrieval_ms: float = 0.0
+    rerank_ms: float = 0.0
+    explain_ms: float = 0.0
+    total_ms: float = 0.0
+
+
+class PipelineStats(BaseModel):
+    """Diagnostics returned with recommendation responses."""
+
+    filter_funnel: Optional[FilterFunnel] = None
+    retrieval_overlap: Optional[RetrievalStats] = None
+    timing_ms: PipelineTiming = Field(default_factory=PipelineTiming)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PipelineResult(BaseModel):
+    """Output of the full recommendation pipeline."""
+
+    ranked_jobs: list[RankedJob] = Field(default_factory=list)
+    stats: PipelineStats = Field(default_factory=PipelineStats)
+    from_cache: bool = False
+
+
 class FusedResult(BaseModel):
     """A job with fused hybrid retrieval scores."""
 

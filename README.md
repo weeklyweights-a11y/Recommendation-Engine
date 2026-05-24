@@ -97,6 +97,36 @@ pytest tests/test_vector_retriever.py tests/test_graph_retriever.py tests/test_h
 
 Manual checks: `SELECT count(*) FROM jobs WHERE is_embedded = false` → 0; four `*_index.faiss` files under `FAISS_INDEX_PATH`; compare `FUSION_STRATEGY=rrf` vs `weighted_sum` on the same candidate.
 
+## Phase 4 runbook
+
+Prerequisites: Phase 1–3 complete, embedded jobs, FAISS indexes, Elasticsearch index, `GOOGLE_AI_API_KEY` for explanations.
+
+```bash
+# Unit tests (mocked LLM / pipeline stages)
+pytest tests/test_hard_filters.py tests/test_reranker.py tests/test_explainer.py tests/test_matching_engine.py tests/test_api.py -v
+
+# Start API
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+
+# Full pipeline for a candidate UUID (first run may take minutes)
+python scripts/demo_recommendations.py --candidate-id <uuid> --refresh
+
+# Filter funnel only
+python scripts/demo_hard_filters.py --candidate-id <uuid>
+
+# Hybrid fuse + rerank comparison
+python scripts/demo_rerank.py --candidate-id <uuid>
+```
+
+API base path: `/api/v1`. Key routes: `GET /health`, `POST /candidates` (resume upload), `GET /recommendations/{candidate_id}?refresh=1`, `PATCH /candidates/{id}/preferences`, `POST /feedback`.
+
+Integration health check (requires Docker services):
+
+```bash
+set RUN_INTEGRATION=1
+pytest tests/test_api.py -m integration -v
+```
+
 ## Project structure
 
 - `config/` — settings and logging
