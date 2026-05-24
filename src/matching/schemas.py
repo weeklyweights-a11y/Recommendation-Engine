@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SkillOverlap(BaseModel):
@@ -39,6 +39,24 @@ class FilterFunnel(BaseModel):
     after_industry_exclusion: int = 0
     final_count: int = 0
     most_restrictive_filter: str = "none"
+
+
+class RankedJob(BaseModel):
+    """Reranked job with factor breakdown (internal pipeline model)."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    job_id: str
+    job: object
+    rank: int
+    match_score: float
+    match_percentage: int
+    factor_scores: dict[str, float]
+    retrieval_scores: dict[str, float] = Field(default_factory=dict)
+    vector_dimension_scores: Optional[dict[str, float]] = None
+    graph_matched_skills: Optional[list[dict[str, Any]]] = None
+    feed_section: str = "strong_match"
+    explanation: Optional[str] = None
 
 
 class FusedResult(BaseModel):

@@ -1,0 +1,26 @@
+# role_shape_match: candidate archetype -> job role_type -> score
+compatibility:
+  founding_builder:
+    founding: 1.0
+    tech-lead: 0.8
+    ic: 0.6
+    manager: 0.5
+    executive: 0.4
+  platform_engineer:
+    ic: 1.0
+    tech-lead: 0.9
+    founding: 0.6
+    manager: 0.5
+  research_scientist:
+    ic: 0.9
+    tech-lead: 0.6
+    manager: 0.3
+    founding: 0.4
+  generalist:
+    ic: 0.8
+    tech-lead: 0.7
+    founding: 0.7
+    manager: 0.6
+
+default_score: 0.5
+career_changer_floor: 0.6

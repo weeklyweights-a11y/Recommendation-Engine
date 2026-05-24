@@ -1,0 +1,31 @@
+clusters:
+  fintech:
+    - fintech
+    - banking
+    - finance
+    - insurance
+    - payments
+  healthcare:
+    - healthcare
+    - biotech
+    - pharma
+    - medical
+    - life-sciences
+  saas:
+    - saas
+    - enterprise-software
+    - developer-tools
+    - b2b-software
+    - cloud
+  ecommerce:
+    - ecommerce
+    - retail
+    - marketplace
+  ai_ml:
+    - artificial-intelligence
+    - machine-learning
+    - data-science
+
+related_score: 0.7
+unrelated_score: 0.3
+unknown_score: 0.5

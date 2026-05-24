@@ -137,6 +137,14 @@ class PathSettings(BaseSettings):
         default="./data/sample_jobs/",
         alias="KAGGLE_JOBS_PATH",
     )
+    domain_similarity_path: str = Field(
+        default="./config/domain_similarity.yaml",
+        alias="DOMAIN_SIMILARITY_PATH",
+    )
+    role_compatibility_path: str = Field(
+        default="./config/role_compatibility.yaml",
+        alias="ROLE_COMPATIBILITY_PATH",
+    )
 
 
 class ScraperSettings(BaseSettings):
@@ -257,6 +265,66 @@ class IngestionSettings(BaseSettings):
     embedding_chunk_token_limit: int = Field(default=512, alias="EMBEDDING_CHUNK_TOKEN_LIMIT")
 
 
+class RerankerSettings(BaseSettings):
+    """Multi-factor reranker settings (Phase 4)."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    skill_fit_weight: float = Field(default=0.25, alias="RERANK_SKILL_FIT_WEIGHT")
+    experience_alignment_weight: float = Field(
+        default=0.15,
+        alias="RERANK_EXPERIENCE_ALIGNMENT_WEIGHT",
+    )
+    domain_relevance_weight: float = Field(default=0.15, alias="RERANK_DOMAIN_RELEVANCE_WEIGHT")
+    role_shape_weight: float = Field(default=0.15, alias="RERANK_ROLE_SHAPE_WEIGHT")
+    location_fit_weight: float = Field(default=0.10, alias="RERANK_LOCATION_FIT_WEIGHT")
+    company_stage_weight: float = Field(default=0.10, alias="RERANK_COMPANY_STAGE_WEIGHT")
+    semantic_similarity_weight: float = Field(default=0.10, alias="RERANK_SEMANTIC_WEIGHT")
+    freshness_48h_boost: float = Field(default=0.05, alias="RERANK_FRESHNESS_48H_BOOST")
+    freshness_7d_boost: float = Field(default=0.03, alias="RERANK_FRESHNESS_7D_BOOST")
+    diversity_min_industries: int = Field(default=3, alias="RERANK_DIVERSITY_MIN_INDUSTRIES")
+    diversity_min_stages: int = Field(default=3, alias="RERANK_DIVERSITY_MIN_STAGES")
+    diversity_top_n: int = Field(default=20, alias="RERANK_DIVERSITY_TOP_N")
+    diversity_keep_top: int = Field(default=14, alias="RERANK_DIVERSITY_KEEP_TOP")
+    diversity_inject_start: int = Field(default=15, alias="RERANK_DIVERSITY_INJECT_START")
+    diversity_inject_end: int = Field(default=20, alias="RERANK_DIVERSITY_INJECT_END")
+    diversity_scan_until: int = Field(default=100, alias="RERANK_DIVERSITY_SCAN_UNTIL")
+    worth_exploring_semantic_min: float = Field(
+        default=0.6,
+        alias="RERANK_WORTH_EXPLORING_SEMANTIC_MIN",
+    )
+    worth_exploring_factor_max: float = Field(
+        default=0.5,
+        alias="RERANK_WORTH_EXPLORING_FACTOR_MAX",
+    )
+    worth_exploring_percentile: float = Field(
+        default=0.2,
+        alias="RERANK_WORTH_EXPLORING_PERCENTILE",
+    )
+    skill_direct_weight: float = Field(default=1.0, alias="RERANK_SKILL_DIRECT_WEIGHT")
+    skill_one_hop_weight: float = Field(default=0.6, alias="RERANK_SKILL_ONE_HOP_WEIGHT")
+    skill_two_hop_weight: float = Field(default=0.3, alias="RERANK_SKILL_TWO_HOP_WEIGHT")
+    skill_default_required_count: int = Field(
+        default=8,
+        alias="RERANK_SKILL_DEFAULT_REQUIRED_COUNT",
+    )
+    skill_depth_threshold: float = Field(default=0.7, alias="RERANK_SKILL_DEPTH_THRESHOLD")
+    skill_depth_boost_multiplier: float = Field(
+        default=1.2,
+        alias="RERANK_SKILL_DEPTH_BOOST_MULTIPLIER",
+    )
+    career_changer_role_shape_floor: float = Field(
+        default=0.6,
+        alias="RERANK_CAREER_CHANGER_ROLE_SHAPE_FLOOR",
+    )
+    stage_adjacent_score: float = Field(default=0.7, alias="RERANK_STAGE_ADJACENT_SCORE")
+    stage_two_step_score: float = Field(default=0.4, alias="RERANK_STAGE_TWO_STEP_SCORE")
+    stage_far_score: float = Field(default=0.2, alias="RERANK_STAGE_FAR_SCORE")
+    stage_unknown_score: float = Field(default=0.5, alias="RERANK_STAGE_UNKNOWN_SCORE")
+    stage_no_preference_score: float = Field(default=0.7, alias="RERANK_STAGE_NO_PREF_SCORE")
+    experience_unknown_score: float = Field(default=0.7, alias="RERANK_EXPERIENCE_UNKNOWN_SCORE")
+
+
 class HardFilterSettings(BaseSettings):
     """Hard constraint filter settings (Phase 4)."""
 
@@ -300,6 +368,7 @@ class Settings(BaseSettings):
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
     hard_filter: HardFilterSettings = Field(default_factory=HardFilterSettings)
+    reranker: RerankerSettings = Field(default_factory=RerankerSettings)
     app: AppSettings = Field(default_factory=AppSettings)
 
 
