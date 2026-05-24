@@ -31,8 +31,9 @@ def sanitize_github_username(username: str, settings: Settings | None = None) ->
 
 def _headers(settings: Settings) -> dict[str, str]:
     headers = {"Accept": "application/vnd.github+json"}
-    token = settings.github.github_token
-    if token:
+    token = (settings.github.github_token or "").strip()
+    placeholders = {"", "your_github_token_here", "ghp_placeholder", "none", "null"}
+    if token.lower() not in placeholders and not token.startswith("your_"):
         headers["Authorization"] = f"Bearer {token}"
     return headers
 

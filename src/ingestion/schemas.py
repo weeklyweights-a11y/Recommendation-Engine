@@ -2,13 +2,13 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 
 class ExtractedSkill(BaseModel):
     """Skill extracted from resume text."""
 
-    name: str
+    name: str = Field(validation_alias=AliasChoices("name", "skill"))
     category: str = "other"
     proficiency: str = "intermediate"
     years_used: Optional[float] = None
@@ -39,6 +39,12 @@ class ExtractedEducation(BaseModel):
     field: str = ""
     graduation_year: Optional[int] = None
 
+    @field_validator("degree", "field", mode="before")
+    @classmethod
+    def empty_str_if_null(cls, value: object) -> str:
+        """Coerce null LLM values to empty strings."""
+        return "" if value is None else str(value)
+
 
 class InferredPreferences(BaseModel):
     """Preferences inferred from career history."""
@@ -47,6 +53,23 @@ class InferredPreferences(BaseModel):
     preferred_team_size: Optional[str] = None
     preferred_work_style: Optional[str] = None
     likely_looking_for: Optional[str] = None
+
+    @field_validator(
+        "preferred_company_stage",
+        "preferred_team_size",
+        "preferred_work_style",
+        "likely_looking_for",
+        mode="before",
+    )
+    @classmethod
+    def coerce_preference_text(cls, value: object) -> Optional[str]:
+        """Allow lists from the LLM by joining into a single string."""
+        if value is None:
+            return None
+        if isinstance(value, list):
+            parts = [str(item) for item in value if item]
+            return ", ".join(parts) if parts else None
+        return str(value)
 
 
 class ExtractedProfile(BaseModel):
@@ -66,24 +89,13 @@ class ExtractedProfile(BaseModel):
     inferred_preferences: InferredPreferences = Field(default_factory=InferredPreferences)
     summary: str = ""
 
-    @field_validator("skills")
+    @field_validator("total_years_experience", mode="before")
     @classmethod
-    def skills_not_empty(cls, value: list[ExtractedSkill]) -> list[ExtractedSkill]:
-        """Require at least one skill."""
-        if not value:
-            raise ValueError("skills must not be empty")
-        return value
-
-    @field_validator("experience")
-    @classmethod
-    def experience_not_empty(
-        cls,
-        value: list[ExtractedExperience],
-    ) -> list[ExtractedExperience]:
-        """Require at least one experience entry."""
-        if not value:
-            raise ValueError("experience must not be empty")
-        return value
+    def coerce_total_years(cls, value: object) -> float:
+        """Coerce string numerics from LLM output."""
+        if value is None or value == "":
+            return 0.0
+        return float(value)
 
     @field_validator("total_years_experience")
     @classmethod
@@ -92,6 +104,17 @@ class ExtractedProfile(BaseModel):
         if value < 0:
             raise ValueError("total_years_experience must be >= 0")
         return value
+
+    @model_validator(mode="after")
+    def required_sections_present(self) -> "ExtractedProfile":
+        """Reject incomplete LLM output (Pydantic skips field validators on omitted keys)."""
+        if not self.skills:
+            raise ValueError("skills must not be empty")
+        if not self.experience:
+            raise ValueError("experience must not be empty")
+        if not (self.summary or "").strip():
+            raise ValueError("summary must not be empty")
+        return self
 
 
 class ActivityMetrics(BaseModel):

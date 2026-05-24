@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -45,6 +46,40 @@ def _parse_end_date(end_date: Optional[str]) -> str:
     if end_date.lower() in {"present", "current", "now"}:
         return _PRESENT_END
     return end_date
+
+
+def _parse_year_month(value: Optional[str]) -> Optional[tuple[int, int]]:
+    """Parse YYYY-MM or YYYY from a date string."""
+    if not value:
+        return None
+    cleaned = value.strip().lower()
+    if cleaned in {"present", "current", "now"}:
+        now = datetime.now(timezone.utc)
+        return now.year, now.month
+    match = re.match(r"^(\d{4})(?:-(\d{1,2}))?", cleaned)
+    if not match:
+        return None
+    year = int(match.group(1))
+    month = int(match.group(2) or 1)
+    return year, min(max(month, 1), 12)
+
+
+def _estimate_total_years(experience: list[ProfileExperience]) -> float:
+    """Estimate total years of experience from job date ranges."""
+    if not experience:
+        return 0.0
+    month_total = 0
+    for job in experience:
+        if job.duration_months and job.duration_months > 0:
+            month_total += job.duration_months
+            continue
+        start = _parse_year_month(job.start_date)
+        end = _parse_year_month(job.end_date) or _parse_year_month("present")
+        if not start or not end:
+            continue
+        months = (end[0] - start[0]) * 12 + (end[1] - start[1])
+        month_total += max(months, 1)
+    return round(month_total / 12.0, 1)
 
 
 def _sort_experience(experience: list[ProfileExperience]) -> list[ProfileExperience]:
@@ -377,6 +412,9 @@ async def _assemble_profile(
         [ProfileExperience.model_validate(item.model_dump()) for item in extracted.experience],
     )
     education = [ProfileEducation.model_validate(item.model_dump()) for item in extracted.education]
+    total_years = extracted.total_years_experience
+    if total_years <= 0 and experience:
+        total_years = _estimate_total_years(experience)
 
     profile = CandidateProfile(
         name=extracted.name,
@@ -386,7 +424,7 @@ async def _assemble_profile(
         skills=skills,
         experience=experience,
         education=education,
-        total_years_experience=extracted.total_years_experience,
+        total_years_experience=total_years,
         domains=sorted(set(extracted.domains)),
         role_archetype=extracted.role_archetype,
         career_trajectory=extracted.career_trajectory,

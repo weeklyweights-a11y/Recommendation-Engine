@@ -114,10 +114,10 @@ def test_extraction_failure_after_retries(mock_client_cls: MagicMock) -> None:
 
 
 @patch("src.ingestion.llm_extractor.genai.Client")
-def test_validation_rejects_empty_skills(mock_client_cls: MagicMock) -> None:
-    """Pydantic validation catches empty skills."""
+def test_validation_rejects_empty_experience(mock_client_cls: MagicMock) -> None:
+    """Incomplete payloads without experience are rejected."""
     payload = dict(SAMPLE_PROFILE)
-    payload["skills"] = []
+    payload["experience"] = []
     mock_client_cls.return_value.models.generate_content.return_value = MagicMock(
         text=json.dumps(payload),
         usage_metadata=MagicMock(prompt_token_count=1, candidates_token_count=1, total_token_count=2),
