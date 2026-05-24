@@ -59,6 +59,10 @@ async def create_feedback(
     with get_sync_session() as sync_sess:
         apply_feedback_weights(body.candidate_id, sync_sess)
 
+    from src.cache.invalidation import invalidate_candidate_recommendation_cache
+
+    invalidate_candidate_recommendation_cache(body.candidate_id)
+
     return FeedbackResponse.model_validate(row)
 
 

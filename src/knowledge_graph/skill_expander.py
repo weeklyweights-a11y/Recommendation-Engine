@@ -69,10 +69,23 @@ def _expand_skill_impl(skill_uri: str, max_hops: int) -> list[ExpandedSkill]:
 
 def expand_skill(skill_uri: str, max_hops: int = 2) -> list[ExpandedSkill]:
     """Expand a skill URI to related skills with decay weights."""
+    from src.cache.redis_client import get_redis_cache
+
     settings = get_settings()
     hops = min(max_hops, settings.skill_graph.skill_expansion_max_hops)
-    cached = _cached_expand(skill_uri, hops)
-    return list(cached)
+    redis_key = f"esco:expand:{skill_uri}:{hops}"
+    cache = get_redis_cache()
+    redis_payload = cache.get_json(redis_key)
+    if redis_payload is not None:
+        return [ExpandedSkill.model_validate(item) for item in redis_payload]
+
+    expanded = list(_cached_expand(skill_uri, hops))
+    cache.set_json(
+        redis_key,
+        [item.model_dump() for item in expanded],
+        settings.cache.esco_expand_ttl_seconds,
+    )
+    return expanded
 
 
 def expand_skill_by_label(label: str, max_hops: int = 2) -> list[ExpandedSkill]:

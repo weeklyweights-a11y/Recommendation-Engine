@@ -64,18 +64,46 @@ class RankedJob(BaseModel):
     retrieval_scores: dict[str, float] = Field(default_factory=dict)
     vector_dimension_scores: Optional[dict[str, float]] = None
     graph_matched_skills: Optional[list[dict[str, Any]]] = None
+    skill_match_display: Optional[dict[str, list[dict[str, Any]]]] = None
     feed_section: str = "strong_match"
     explanation: Optional[str] = None
+
+
+class HybridTiming(BaseModel):
+    """Per-source hybrid retrieval timings in milliseconds."""
+
+    bm25_ms: float = 0.0
+    vector_ms: float = 0.0
+    graph_ms: float = 0.0
+    fusion_ms: float = 0.0
 
 
 class PipelineTiming(BaseModel):
     """Per-stage pipeline timings in milliseconds."""
 
-    hard_filter_ms: float = 0.0
-    retrieval_ms: float = 0.0
+    load_candidate_ms: float = 0.0
+    hard_filters_ms: float = 0.0
+    bm25_ms: float = 0.0
+    vector_ms: float = 0.0
+    graph_ms: float = 0.0
+    fusion_ms: float = 0.0
     rerank_ms: float = 0.0
-    explain_ms: float = 0.0
+    load_job_details_ms: float = 0.0
+    llm_explanations_ms: float = 0.0
+    store_results_ms: float = 0.0
     total_ms: float = 0.0
+
+    @property
+    def hard_filter_ms(self) -> float:
+        return self.hard_filters_ms
+
+    @property
+    def retrieval_ms(self) -> float:
+        return self.bm25_ms + self.vector_ms + self.graph_ms + self.fusion_ms
+
+    @property
+    def explain_ms(self) -> float:
+        return self.llm_explanations_ms
 
 
 class PipelineStats(BaseModel):

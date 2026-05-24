@@ -22,6 +22,9 @@ class DatabaseSettings(BaseSettings):
         alias="ALEMBIC_DATABASE_URL",
         description="Sync SQLAlchemy URL for Alembic migrations.",
     )
+    pool_size: int = Field(default=5, alias="DATABASE_POOL_SIZE")
+    max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
+    statement_timeout_seconds: int = Field(default=10, alias="DATABASE_STATEMENT_TIMEOUT_SECONDS")
 
     @field_validator("database_url")
     @classmethod
@@ -41,6 +44,22 @@ class RedisSettings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
 
+class CacheSettings(BaseSettings):
+    """Application Redis cache TTLs and behavior."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    esco_expand_ttl_seconds: int = Field(default=86400, alias="CACHE_ESCO_EXPAND_TTL_SECONDS")
+    esco_link_ttl_seconds: int = Field(default=86400, alias="CACHE_ESCO_LINK_TTL_SECONDS")
+    job_row_ttl_seconds: int = Field(default=21600, alias="CACHE_JOB_ROW_TTL_SECONDS")
+    explain_ttl_seconds: int = Field(default=3600, alias="CACHE_EXPLAIN_TTL_SECONDS")
+    log_pipeline_timings: bool = Field(default=False, alias="LOG_PIPELINE_TIMINGS")
+    log_format: str = Field(
+        default="%(asctime)s | %(levelname)s | %(name)s.%(funcName)s | %(message)s",
+        alias="LOG_FORMAT",
+    )
+
+
 class Neo4jSettings(BaseSettings):
     """Neo4j knowledge graph settings."""
 
@@ -49,6 +68,7 @@ class Neo4jSettings(BaseSettings):
     neo4j_uri: str = Field(default="bolt://localhost:7687", alias="NEO4J_URI")
     neo4j_user: str = Field(default="neo4j", alias="NEO4J_USER")
     neo4j_password: str = Field(default="", alias="NEO4J_PASSWORD")
+    neo4j_query_timeout_seconds: int = Field(default=5, alias="NEO4J_QUERY_TIMEOUT_SECONDS")
 
 
 class ElasticsearchSettings(BaseSettings):
@@ -61,6 +81,7 @@ class ElasticsearchSettings(BaseSettings):
         alias="ELASTICSEARCH_URL",
     )
     es_index_name: str = Field(default="jobs", alias="ES_INDEX_NAME")
+    es_query_timeout_seconds: int = Field(default=3, alias="ES_QUERY_TIMEOUT_SECONDS")
 
 
 class LLMSettings(BaseSettings):
@@ -86,6 +107,7 @@ class LLMSettings(BaseSettings):
         alias="LLM_MODEL_FLASH",
     )
     llm_max_tokens: int = Field(default=4096, alias="LLM_MAX_TOKENS")
+    llm_extraction_max_tokens: int = Field(default=8192, alias="LLM_EXTRACTION_MAX_TOKENS")
 
 
 class EmbeddingSettings(BaseSettings):
@@ -247,7 +269,17 @@ class IngestionSettings(BaseSettings):
     )
     github_min_repos_partial: int = Field(default=3, alias="GITHUB_MIN_REPOS_PARTIAL")
     github_fork_recency_days: int = Field(default=180, alias="GITHUB_FORK_RECENCY_DAYS")
-    github_llm_summary_max_chars: int = Field(default=4000, alias="GITHUB_LLM_SUMMARY_MAX_CHARS")
+    github_llm_summary_max_chars: int = Field(default=8000, alias="GITHUB_LLM_SUMMARY_MAX_CHARS")
+    github_max_inferred_skills: int = Field(
+        default=0,
+        alias="GITHUB_MAX_INFERRED_SKILLS",
+        description="Cap GitHub-inferred skill names; 0 means no cap.",
+    )
+    extraction_max_skills: int = Field(
+        default=0,
+        alias="EXTRACTION_MAX_SKILLS",
+        description="Cap total profile skills after merge; 0 means no cap.",
+    )
     github_username_max_length: int = Field(default=39, alias="GITHUB_USERNAME_MAX_LENGTH")
     skill_depth_resume_mention: float = Field(default=0.25, alias="SKILL_DEPTH_RESUME_MENTION")
     skill_depth_resume_proficiency: float = Field(
@@ -337,7 +369,9 @@ class ExplainerSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     explain_top_k: int = Field(default=20, alias="EXPLAIN_TOP_K")
+    explain_llm_top_k: int = Field(default=10, alias="EXPLAIN_LLM_TOP_K")
     explain_batch_size: int = Field(default=5, alias="EXPLAIN_BATCH_SIZE")
+    explain_parallel_batches: bool = Field(default=True, alias="EXPLAIN_PARALLEL_BATCHES")
     log_token_usage: bool = Field(default=True, alias="EXPLAIN_LOG_TOKEN_USAGE")
 
 
@@ -462,6 +496,7 @@ class Settings(BaseSettings):
 
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
+    cache: CacheSettings = Field(default_factory=CacheSettings)
     neo4j: Neo4jSettings = Field(default_factory=Neo4jSettings)
     elasticsearch: ElasticsearchSettings = Field(default_factory=ElasticsearchSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)

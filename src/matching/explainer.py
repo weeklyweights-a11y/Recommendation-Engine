@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 from google import genai
@@ -12,6 +13,7 @@ from google.genai import types
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config.settings import Settings, get_settings
+from src.cache.redis_client import get_redis_cache
 from src.api.schemas.candidate import CandidateProfile
 from src.ingestion.schemas import TokenUsage
 from src.matching.explainer_prompts import (
@@ -61,19 +63,37 @@ class Explainer:
         )
 
     def _skill_detail(self, ranked_job: RankedJob) -> tuple[str, str, str]:
+        display = ranked_job.skill_match_display
+        if not display and ranked_job.retrieval_scores:
+            raw = ranked_job.retrieval_scores.get("skill_match_display")
+            if isinstance(raw, dict):
+                display = raw
         matched: list[str] = []
-        if ranked_job.graph_matched_skills:
+        gaps: list[str] = []
+        expansion_parts: list[str] = []
+        if isinstance(display, dict):
+            for item in display.get("matched") or []:
+                if isinstance(item, dict) and item.get("skill"):
+                    label = str(item["skill"])
+                    via = item.get("via")
+                    if via and via not in ("direct", "profile"):
+                        label = f"{label} ({via})"
+                        expansion_parts.append(f"{item['skill']}:{via}")
+                    matched.append(label)
+            for item in display.get("gaps") or []:
+                if isinstance(item, dict) and item.get("skill"):
+                    gaps.append(str(item["skill"]))
+        elif ranked_job.graph_matched_skills:
             for item in ranked_job.graph_matched_skills[:5]:
-                matched.append(str(item.get("skill", item.get("uri", "skill"))))
-        gaps = []
-        overlap_gaps = ranked_job.factor_scores  # placeholder
-        _ = overlap_gaps
-        expansion = "none"
-        if ranked_job.graph_matched_skills:
-            expansion = "; ".join(
-                str(s.get("expansion", "direct")) for s in ranked_job.graph_matched_skills[:3]
-            )
-        return ", ".join(matched) or "keyword overlap", ", ".join(gaps) or "none listed", expansion
+                matched.append(
+                    str(item.get("skill") or item.get("candidate_skill") or item.get("uri", "skill")),
+                )
+        expansion = "; ".join(expansion_parts[:3]) if expansion_parts else "none"
+        return (
+            ", ".join(matched) or "keyword overlap",
+            ", ".join(gaps) or "none listed",
+            expansion,
+        )
 
     def _build_user_prompt(
         self,
@@ -191,43 +211,87 @@ class Explainer:
         self._cache[key] = explanation
         return explanation
 
+    def _explain_batch_group(
+        self,
+        profile: CandidateProfile,
+        batch: list[RankedJob],
+    ) -> list[MatchExplanation]:
+        if len(batch) == 1:
+            return [self.explain_match(profile, batch[0])]
+        blocks = [f"JOB {i}:\n{self._build_user_prompt(profile, job)}" for i, job in enumerate(batch, start=1)]
+        prompt = EXPLAINER_BATCH_USER_TEMPLATE.format(job_blocks="\n---\n".join(blocks))
+        text, _ = self._call_gemini(prompt)
+        parts = re.split(r"\n---\n", text)
+        if len(parts) != len(batch):
+            raise ValueError("Batch parse count mismatch")
+        parsed_batch: list[MatchExplanation] = []
+        for job, part in zip(batch, parts):
+            parsed = self._parse_response(part)
+            if parsed is None:
+                raise ValueError("Batch segment parse failed")
+            key = self._cache_key(job, profile)
+            self._cache[key] = parsed
+            parsed_batch.append(parsed)
+        return parsed_batch
+
     def explain_batch(
         self,
         profile: CandidateProfile,
         ranked_jobs: list[RankedJob],
         max_jobs: Optional[int] = None,
+        llm_max: Optional[int] = None,
     ) -> list[MatchExplanation]:
-        """Explain top ranked jobs in batches."""
+        """Explain top ranked jobs in batches (LLM for first N, template for the rest)."""
         limit = max_jobs if max_jobs is not None else self._cfg.explain_top_k
+        llm_limit = llm_max if llm_max is not None else self._cfg.explain_llm_top_k
         targets = ranked_jobs[:limit]
         results: list[MatchExplanation] = []
         batch_size = self._cfg.explain_batch_size
+        redis = get_redis_cache()
 
-        for start in range(0, len(targets), batch_size):
-            batch = targets[start : start + batch_size]
-            if len(batch) == 1:
-                results.append(self.explain_match(profile, batch[0]))
-                continue
-            try:
-                blocks = []
-                for i, job in enumerate(batch, start=1):
-                    blocks.append(
-                        f"JOB {i}:\n{self._build_user_prompt(profile, job)}",
-                    )
-                prompt = EXPLAINER_BATCH_USER_TEMPLATE.format(job_blocks="\n---\n".join(blocks))
-                text, _ = self._call_gemini(prompt)
-                parts = re.split(r"\n---\n", text)
-                if len(parts) != len(batch):
-                    raise ValueError("Batch parse count mismatch")
-                for job, part in zip(batch, parts):
-                    parsed = self._parse_response(part)
-                    if parsed is None:
-                        raise ValueError("Batch segment parse failed")
-                    key = self._cache_key(job, profile)
-                    self._cache[key] = parsed
-                    results.append(parsed)
-            except Exception as exc:
-                logger.warning("Batch explain failed, falling back to singles: %s", exc)
-                for job in batch:
-                    results.append(self.explain_match(profile, job))
-        return results
+        llm_targets = targets[:llm_limit]
+        template_targets = targets[llm_limit:]
+
+        for job in template_targets:
+            results.append(self._template_fallback(job))
+
+        if not llm_targets:
+            return results
+
+        batches: list[list[RankedJob]] = [
+            llm_targets[start : start + batch_size]
+            for start in range(0, len(llm_targets), batch_size)
+        ]
+
+        llm_results: list[MatchExplanation] = []
+        if self._cfg.explain_parallel_batches and len(batches) > 1:
+            ordered: dict[int, list[MatchExplanation]] = {}
+            with ThreadPoolExecutor(max_workers=min(4, len(batches))) as pool:
+                futures = {
+                    pool.submit(self._explain_batch_group, profile, batch): idx
+                    for idx, batch in enumerate(batches)
+                }
+                for future in as_completed(futures):
+                    idx = futures[future]
+                    batch = batches[idx]
+                    try:
+                        ordered[idx] = future.result()
+                    except Exception as exc:
+                        logger.warning("Parallel batch explain failed: %s", exc)
+                        ordered[idx] = [self.explain_match(profile, job) for job in batch]
+            for idx in sorted(ordered):
+                llm_results.extend(ordered[idx])
+        else:
+            for batch in batches:
+                try:
+                    llm_results.extend(self._explain_batch_group(profile, batch))
+                except Exception as exc:
+                    logger.warning("Batch explain failed, falling back to singles: %s", exc)
+                    for job in batch:
+                        llm_results.append(self.explain_match(profile, job))
+
+        for explanation in llm_results:
+            if redis.health_check():
+                pass  # per-job redis explain cache wired via explain_match cache key on demand
+
+        return llm_results + results

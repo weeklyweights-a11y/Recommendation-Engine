@@ -1,5 +1,6 @@
 """Map free-text skills to ESCO taxonomy nodes."""
 
+import hashlib
 import json
 import logging
 from functools import lru_cache
@@ -97,10 +98,20 @@ def link_skills_batch(free_texts: list[str]) -> list[Optional[LinkedSkill]]:
 
 def link_skill(free_text: str) -> Optional[LinkedSkill]:
     """Map free-text to best ESCO skill: exact, fuzzy, then semantic."""
+    from src.cache.redis_client import get_redis_cache
+
     settings = get_settings()
     text = free_text.strip()
     if not text:
         return None
+
+    redis_key = f"esco:link:{hashlib.sha256(text.lower().encode()).hexdigest()}"
+    cache = get_redis_cache()
+    cached = cache.get_json(redis_key)
+    if cached is not None:
+        if not cached:
+            return None
+        return LinkedSkill.model_validate(cached)
 
     with Neo4jClient() as client:
         _load_label_index(client)
@@ -108,12 +119,14 @@ def link_skill(free_text: str) -> Optional[LinkedSkill]:
     lower = text.lower()
     if lower in _label_index:
         uri = _label_index[lower]
-        return LinkedSkill(
+        linked = LinkedSkill(
             esco_uri=uri,
             esco_label=_uri_labels.get(uri, text),
             match_type="exact",
             confidence=1.0,
         )
+        cache.set_json(redis_key, linked.model_dump(), settings.cache.esco_link_ttl_seconds)
+        return linked
 
     if _label_index and len(lower) >= 4:
         match = process.extractOne(
@@ -125,17 +138,20 @@ def link_skill(free_text: str) -> Optional[LinkedSkill]:
             matched_label = match[0]
             if len(matched_label) >= 4 and len(matched_label) >= len(lower) * 0.4:
                 uri = _label_index[matched_label]
-                return LinkedSkill(
+                linked = LinkedSkill(
                     esco_uri=uri,
                     esco_label=_uri_labels.get(uri, matched_label),
                     match_type="fuzzy",
                     confidence=match[1] / 100.0,
                 )
+                cache.set_json(redis_key, linked.model_dump(), settings.cache.esco_link_ttl_seconds)
+                return linked
 
     try:
         _load_embeddings(settings)
     except FileNotFoundError:
         logger.warning("Semantic linking unavailable — embeddings missing")
+        cache.set_json(redis_key, {}, settings.cache.esco_link_ttl_seconds)
         return None
 
     assert _embedding_model is not None and _skill_matrix is not None
@@ -144,15 +160,18 @@ def link_skill(free_text: str) -> Optional[LinkedSkill]:
     best_idx = int(np.argmax(scores))
     best_score = float(scores[best_idx])
     if best_score < settings.skill_graph.semantic_match_threshold:
+        cache.set_json(redis_key, {}, settings.cache.esco_link_ttl_seconds)
         return None
     uri = _uri_by_index[best_idx]
     label = _uri_labels.get(uri, uri)
-    return LinkedSkill(
+    linked = LinkedSkill(
         esco_uri=uri,
         esco_label=label,
         match_type="semantic",
         confidence=best_score,
     )
+    cache.set_json(redis_key, linked.model_dump(), settings.cache.esco_link_ttl_seconds)
+    return linked
 
 
 def link_skills(free_texts: list[str]) -> list[Optional[LinkedSkill]]:

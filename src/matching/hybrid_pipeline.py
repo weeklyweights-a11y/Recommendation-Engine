@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 from uuid import UUID
@@ -21,7 +22,7 @@ from src.embeddings.schemas import CandidateEmbeddings
 from src.matching.bm25_retriever import BM25Retriever
 from src.matching.graph_retriever import GraphRetriever
 from src.matching.hybrid_fuser import HybridFuser
-from src.matching.schemas import FusedResult, RetrievalStats
+from src.matching.schemas import FusedResult, HybridTiming, RetrievalStats
 from src.matching.vector_retriever import VectorRetriever
 
 logger = logging.getLogger(__name__)
@@ -143,12 +144,12 @@ def retrieve_hybrid_parallel(
     allowed_job_ids: Optional[set[str]] = None,
     session: Optional[Session] = None,
     settings: Optional[Settings] = None,
-) -> tuple[list[FusedResult], RetrievalStats]:
+) -> tuple[list[FusedResult], RetrievalStats, HybridTiming]:
     """Run BM25, vector, and graph retrieval in parallel, then fuse."""
     cfg = settings or get_settings()
     k = top_k if top_k is not None else cfg.retrieval.hybrid_top_k
 
-    def _run(sess: Session) -> tuple[list[FusedResult], RetrievalStats]:
+    def _run(sess: Session) -> tuple[list[FusedResult], RetrievalStats, HybridTiming]:
         resolved_profile = profile
         resolved_embeddings = embeddings
         candidate: Optional[Candidate] = None
@@ -175,53 +176,66 @@ def retrieve_hybrid_parallel(
         fuser = HybridFuser(cfg)
         query_text = _build_bm25_query(resolved_profile)
 
-        def _bm25() -> list:
+        def _bm25() -> tuple[list, float]:
+            t0 = time.perf_counter()
             try:
                 results = bm25.retrieve(
                     query_text,
                     top_k=k,
                     allowed_job_ids=allowed_job_ids,
                 )
-                return _filter_allowed(results, allowed_job_ids)
+                return _filter_allowed(results, allowed_job_ids), (time.perf_counter() - t0) * 1000
             except Exception as exc:
                 logger.error("BM25 retrieval failed: %s", exc)
-                return []
+                return [], (time.perf_counter() - t0) * 1000
 
-        def _vector() -> list:
+        def _vector() -> tuple[list, float]:
+            t0 = time.perf_counter()
             try:
-                return vector_retriever.retrieve(
+                results = vector_retriever.retrieve(
                     resolved_embeddings,
                     top_k=k,
                     allowed_job_ids=allowed_job_ids,
                 )
+                return results, (time.perf_counter() - t0) * 1000
             except Exception as exc:
                 logger.error("Vector retrieval failed: %s", exc)
-                return []
+                return [], (time.perf_counter() - t0) * 1000
 
-        def _graph() -> list:
+        def _graph() -> tuple[list, float]:
+            t0 = time.perf_counter()
             try:
-                return graph_retriever.retrieve(
+                results = graph_retriever.retrieve(
                     resolved_profile.esco_linked_skills,
                     top_k=k,
                     allowed_job_ids=allowed_job_ids,
                     session=sess,
                     profile=resolved_profile,
                 )
+                return results, (time.perf_counter() - t0) * 1000
             except Exception as exc:
                 logger.error("Graph retrieval failed: %s", exc)
-                return []
+                return [], (time.perf_counter() - t0) * 1000
 
         with ThreadPoolExecutor(max_workers=3) as pool:
             f_bm25 = pool.submit(_bm25)
             f_vector = pool.submit(_vector)
             f_graph = pool.submit(_graph)
-            bm25_results = f_bm25.result()
-            vector_results = f_vector.result()
-            graph_results = f_graph.result()
+            bm25_results, bm25_ms = f_bm25.result()
+            vector_results, vector_ms = f_vector.result()
+            graph_results, graph_ms = f_graph.result()
 
+        t_fuse = time.perf_counter()
         stats = fuser.analyze_retrieval_diversity(bm25_results, vector_results, graph_results)
         fused = fuser.fuse(bm25_results, vector_results, graph_results, top_k=k)
-        return fused, stats
+        fusion_ms = (time.perf_counter() - t_fuse) * 1000
+        hybrid_timing = HybridTiming(
+            bm25_ms=bm25_ms,
+            vector_ms=vector_ms,
+            graph_ms=graph_ms,
+            fusion_ms=fusion_ms,
+        )
+        return fused, stats, hybrid_timing
 
     if session is not None:
         return _run(session)
@@ -231,6 +245,6 @@ def retrieve_hybrid_parallel(
 
 async def retrieve_hybrid_parallel_async(
     **kwargs: object,
-) -> tuple[list[FusedResult], RetrievalStats]:
+) -> tuple[list[FusedResult], RetrievalStats, HybridTiming]:
     """Async wrapper executing parallel hybrid retrieval in a thread pool."""
     return await asyncio.to_thread(retrieve_hybrid_parallel, **kwargs)

@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 from src.matching.recommendation_pipeline import run_recommendation_pipeline
-from src.matching.schemas import FilterFunnel, FusedResult, PipelineStats, RankedJob
+from src.matching.schemas import FilterFunnel, FusedResult, HybridTiming, RankedJob
 
 
 def _funnel(final: int = 100) -> FilterFunnel:
@@ -30,6 +30,7 @@ def _ranked(job_id: str, rank: int) -> RankedJob:
     )
 
 
+@patch("src.matching.recommendation_pipeline.get_redis_cache")
 @patch("src.matching.recommendation_pipeline.Explainer")
 @patch("src.matching.recommendation_pipeline.Reranker")
 @patch("src.matching.recommendation_pipeline.retrieve_hybrid_parallel")
@@ -41,7 +42,10 @@ def test_pipeline_empty_allowed_set(
     mock_hybrid,
     mock_reranker_cls,
     mock_explainer_cls,
+    mock_redis,
 ) -> None:
+    mock_redis.return_value.get_json.return_value = None
+
     candidate_id = uuid4()
     session = MagicMock()
     mock_session_ctx.return_value.__enter__.return_value = session
@@ -64,6 +68,8 @@ def test_pipeline_empty_allowed_set(
     mock_explainer_cls.assert_not_called()
 
 
+@patch("src.feedback.service.apply_feedback_weights")
+@patch("src.matching.recommendation_pipeline.get_redis_cache")
 @patch("src.matching.recommendation_pipeline._load_embeddings", return_value=None)
 @patch("src.matching.recommendation_pipeline.bulk_insert_recommendations")
 @patch("src.matching.recommendation_pipeline.delete_recommendations_for_candidate")
@@ -81,6 +87,8 @@ def test_pipeline_explains_top_20_only(
     mock_delete,
     mock_bulk,
     _mock_embeddings,
+    mock_redis,
+    _mock_feedback,
 ) -> None:
     candidate_id = uuid4()
     session = MagicMock()
@@ -107,7 +115,12 @@ def test_pipeline_explains_top_20_only(
     hf.get_filter_funnel.return_value = _funnel(final=200)
     hf.filter_jobs.return_value = {str(uuid4())}
 
-    mock_hybrid.return_value = ([FusedResult(job_id="j1", fused_score=0.9)], MagicMock())
+    mock_redis.return_value.get_json.return_value = None
+    mock_hybrid.return_value = (
+        [FusedResult(job_id="j1", fused_score=0.9)],
+        MagicMock(),
+        HybridTiming(),
+    )
 
     ranked = [_ranked(str(uuid4()), i) for i in range(1, 26)]
     mock_reranker_cls.return_value.rerank.return_value = ranked
@@ -123,6 +136,10 @@ def test_pipeline_explains_top_20_only(
         cfg.recommendation.rerank_top_k = 50
         cfg.recommendation.store_top_k = 50
         cfg.recommendation.explain_top_k = 20
+        cfg.recommendation.cache_ttl_seconds = 3600
+        cfg.explainer.explain_llm_top_k = 20
+        cfg.cache.job_row_ttl_seconds = 21600
+        cfg.cache.log_pipeline_timings = False
         mock_settings.return_value = cfg
 
         result = run_recommendation_pipeline(candidate_id, refresh=True)
