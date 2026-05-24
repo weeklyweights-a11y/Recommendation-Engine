@@ -94,11 +94,15 @@ async def get_recommendations(
             refresh=True,
         )
     else:
+        result = None
         with get_sync_session() as sync_sess:
             cached_rows = load_cached_recommendations(sync_sess, candidate_id, settings=settings)
-        if cached_rows:
-            result = PipelineResult(ranked_jobs=_ranked_from_stored(cached_rows), from_cache=True)
-        else:
+            if cached_rows:
+                result = PipelineResult(
+                    ranked_jobs=_ranked_from_stored(cached_rows),
+                    from_cache=True,
+                )
+        if result is None:
             result = await asyncio.to_thread(
                 run_recommendation_pipeline,
                 candidate_id,

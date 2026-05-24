@@ -36,8 +36,8 @@ def main() -> int:
     if result.stats.filter_funnel:
         funnel = result.stats.filter_funnel
         logger.info(
-            "Filter funnel: initial=%s final=%s restrictive=%s",
-            funnel.initial_count,
+            "Filter funnel: total=%s final=%s restrictive=%s",
+            funnel.total_jobs,
             funnel.final_count,
             funnel.most_restrictive_filter,
         )
