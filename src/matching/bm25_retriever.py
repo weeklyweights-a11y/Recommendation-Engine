@@ -4,7 +4,7 @@ import logging
 from typing import Any, Optional
 
 from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import ElasticsearchError
+from elasticsearch.exceptions import ApiError, TransportError
 
 from config.settings import Settings, get_settings
 from src.api.schemas.recommendation import ScoredJob
@@ -27,7 +27,7 @@ class BM25Retriever:
             if not self._client.ping():
                 return False
             return self._client.indices.exists(index=self._index)
-        except ElasticsearchError:
+        except (ApiError, TransportError, OSError):
             return False
 
     def retrieve(
@@ -41,7 +41,7 @@ class BM25Retriever:
         body = self._build_query(query_text, k, filters or {})
         try:
             response = self._client.search(index=self._index, body=body)
-        except ElasticsearchError as exc:
+        except (ApiError, TransportError) as exc:
             logger.exception("Elasticsearch search failed for query=%r", query_text)
             raise RuntimeError(f"BM25 search failed: {exc}") from exc
 

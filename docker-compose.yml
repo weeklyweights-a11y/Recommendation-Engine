@@ -20,9 +20,8 @@ services:
 
   neo4j:
     image: neo4j:5
-    env_file: .env
     environment:
-      NEO4J_AUTH: ${NEO4J_AUTH}
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/change_me}
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_server_memory_heap_max__size: 1G
     ports:

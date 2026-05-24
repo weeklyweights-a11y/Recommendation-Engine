@@ -24,7 +24,7 @@ Refer to PROJECT.md for the full architecture, phase breakdown, and step-by-step
 - If you find yourself typing a string literal that could change between environments, it belongs in config
 - Examples of what MUST be in config:
   - Database URLs, Neo4j URIs, Elasticsearch URLs
-  - API keys (Anthropic, GitHub)
+  - API keys (Google AI, GitHub)
   - Model names (embedding model, LLM model)
   - All numeric thresholds (similarity thresholds, hop decay weights, fusion weights, reranker weights)
   - File paths (FAISS index path, ESCO data path)
@@ -91,7 +91,7 @@ Refer to PROJECT.md for the full architecture, phase breakdown, and step-by-step
   - `elasticsearch` (official client) for Elasticsearch
   - `faiss-cpu` for vector search
   - `sentence-transformers` for embeddings
-  - `anthropic` for Claude API
+  - `google-genai` for Gemini API (`LLM_MODEL_PRO` for extraction/explanations, `LLM_MODEL_FLASH` for batch)
   - `PyMuPDF` (fitz) for PDF parsing
   - `python-docx` for DOCX parsing
   - `httpx` for async HTTP (GitHub API)

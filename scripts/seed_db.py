@@ -1,6 +1,7 @@
 """Run database migrations and print table counts."""
 
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -19,13 +20,18 @@ logger = logging.getLogger(__name__)
 
 def run_migrations() -> None:
     """Execute alembic upgrade head."""
+    settings = get_settings()
     root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["ALEMBIC_DATABASE_URL"] = settings.database.alembic_database_url
+    env["DATABASE_URL"] = settings.database.database_url
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         cwd=root,
         check=False,
         capture_output=True,
         text=True,
+        env=env,
     )
     if result.returncode != 0:
         logger.error("Alembic failed: %s", result.stderr)

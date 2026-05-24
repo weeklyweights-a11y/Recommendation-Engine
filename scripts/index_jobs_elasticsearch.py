@@ -27,7 +27,7 @@ INDEX_MAPPING = {
     "mappings": {
         "properties": {
             "job_id": {"type": "keyword"},
-            "title": {"type": "text", "boost": 2.0},
+            "title": {"type": "text"},
             "description": {"type": "text"},
             "company": {"type": "text"},
             "location": {"type": "keyword"},
@@ -66,21 +66,20 @@ def job_to_doc(job: Job) -> dict[str, Any]:
     }
 
 
-def iter_jobs(limit: int | None) -> Iterator[Job]:
-    """Yield jobs from PostgreSQL."""
+def load_job_documents(limit: int | None) -> list[tuple[str, dict[str, Any]]]:
+    """Load job documents from PostgreSQL while session is active."""
     with get_sync_session() as session:
         stmt = select(Job).order_by(Job.created_at)
         if limit:
             stmt = stmt.limit(limit)
-        for job in session.scalars(stmt):
-            yield job
+        return [(str(job.id), job_to_doc(job)) for job in session.scalars(stmt)]
 
 
 def recreate_index(client: Elasticsearch, index_name: str) -> None:
     """Delete and recreate index with mapping."""
     if client.indices.exists(index=index_name):
         client.indices.delete(index=index_name)
-    client.indices.create(index=index_name, body=INDEX_MAPPING)
+    client.indices.create(index=index_name, mappings=INDEX_MAPPING["mappings"])
 
 
 def main() -> None:
@@ -107,16 +106,16 @@ def main() -> None:
         logger.info("Recreating index %s", index_name)
         recreate_index(client, index_name)
 
-    job_list = list(iter_jobs(args.limit))
-    logger.info("Indexing %s jobs (postgres total: %s)", len(job_list), pg_count)
+    job_docs = load_job_documents(args.limit)
+    logger.info("Indexing %s jobs (postgres total: %s)", len(job_docs), pg_count)
 
-    if job_list:
+    if job_docs:
         def actions() -> Iterator[dict[str, Any]]:
-            for job in tqdm(job_list, desc="Indexing jobs"):
+            for job_id, source in tqdm(job_docs, desc="Indexing jobs"):
                 yield {
                     "_index": index_name,
-                    "_id": str(job.id),
-                    "_source": job_to_doc(job),
+                    "_id": job_id,
+                    "_source": source,
                 }
 
         success, _ = bulk(client, actions(), chunk_size=batch_size, request_timeout=120)

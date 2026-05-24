@@ -31,9 +31,12 @@ def parse_salary(value: Any) -> tuple[Optional[int], Optional[int]]:
     if pd.isna(value):
         return None, None
     try:
-        return int(float(value)), int(float(value))
+        amount = int(float(value))
     except (TypeError, ValueError):
         return None, None
+    if amount < 0 or amount > 10_000_000:
+        return None, None
+    return amount, amount
 
 
 def parse_salary_row(row: pd.Series) -> tuple[Optional[int], Optional[int]]:
@@ -108,15 +111,30 @@ def row_to_job(row: pd.Series, companies: dict[Any, str]) -> Optional[dict[str, 
     if not title or not description:
         return None
 
-    company = str(row.get("company", "") or "").strip()
+    company = str(row.get("company", "") or row.get("company_name", "") or "").strip()
+    if company.lower() == "nan":
+        company = ""
     if not company and "company_id" in row.index:
-        company = companies.get(row.get("company_id"), "")
+        company = str(companies.get(row.get("company_id"), "") or "")
 
     salary_min, salary_max = parse_salary_row(row)
     posted = row.get("original_listed_time") or row.get("listed_time")
     posted_date = None
     if posted is not None and not pd.isna(posted):
-        posted_date = pd.to_datetime(posted, utc=True).to_pydatetime()
+        try:
+            ts = float(posted)
+            if ts > 1e12:
+                posted_date = pd.to_datetime(ts, unit="ms", utc=True).to_pydatetime()
+            elif ts > 1e9:
+                posted_date = pd.to_datetime(ts, unit="s", utc=True).to_pydatetime()
+            else:
+                posted_date = pd.to_datetime(posted, utc=True).to_pydatetime()
+        except (TypeError, ValueError):
+            posted_date = pd.to_datetime(posted, utc=True, errors="coerce")
+            if pd.isna(posted_date):
+                posted_date = None
+            else:
+                posted_date = posted_date.to_pydatetime()
 
     skills_raw = row.get("skills_desc")
     skills_extracted = None
@@ -168,6 +186,23 @@ def load_checkpoint(path: Path) -> int:
     if not path.exists():
         return 0
     return int(path.read_text(encoding="utf-8").strip() or "0")
+
+
+def sanitize_job_record(record: dict[str, Any]) -> dict[str, Any]:
+    """Normalize DataFrame-derived values for ORM insert."""
+    clean = dict(record)
+    for key in ("salary_min", "salary_max"):
+        value = clean.get(key)
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            clean[key] = None
+        else:
+            clean[key] = int(value)
+    company = clean.get("company")
+    if company is None or (isinstance(company, float) and pd.isna(company)):
+        clean["company"] = "Unknown"
+    elif str(company).strip().lower() == "nan":
+        clean["company"] = "Unknown"
+    return clean
 
 
 def main() -> None:
@@ -238,7 +273,7 @@ def main() -> None:
             if key in existing:
                 skipped += 1
                 continue
-            batch.append(Job(**record))
+            batch.append(Job(**sanitize_job_record(record)))
             existing.add(key)
             if len(batch) >= batch_size:
                 try:

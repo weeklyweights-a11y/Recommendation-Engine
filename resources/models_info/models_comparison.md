@@ -59,8 +59,8 @@ Score (resume, job) pairs jointly — slower but more accurate than bi-encoder d
 
 | Model | Use case | Cost | Notes |
 |-------|----------|------|-------|
-| **Claude Sonnet** | Structured profile extraction + natural-language explanations | Medium | **Primary** — strong JSON/structured output |
-| **GPT-4o-mini** | High-volume extraction (skills, entities) | Low | Cheaper alternative for batch ingestion |
+| **Gemini 2.5 Pro** | Structured profile extraction + natural-language explanations | Medium | **Primary** (`LLM_MODEL_PRO`) — strong JSON/structured output |
+| **Gemini 2.5 Flash** | High-volume extraction (skills, job fields) | Low | **Batch** (`LLM_MODEL_FLASH`) — cost-sensitive ingestion |
 
 ### Strict separation of concerns (from JobMatchAI)
 
@@ -114,7 +114,7 @@ index.add(embeddings)
 
 | Pipeline stage | Component | Default model |
 |----------------|-----------|---------------|
-| Ingestion | Skill/entity extraction | Claude Sonnet (or GPT-4o-mini batch) |
+| Ingestion | Skill/entity extraction | Gemini 2.5 Pro (or Gemini 2.5 Flash batch) |
 | Ingestion | ESCO linking | Tabiya livelihoods classifier |
 | Indexing | Job/candidate embedding | all-MiniLM-L6-v2 |
 | Indexing | ANN store | FAISS (HNSW) |
@@ -125,7 +125,7 @@ index.add(embeddings)
 | Retrieval | Graph channel | Neo4j Cypher k=75 |
 | Rerank | Cross-encoder | ms-marco-MiniLM-L-6-v2 |
 | Scoring | Utility function | Deterministic (no LLM) |
-| Explanation | Narrative | Claude Sonnet |
+| Explanation | Narrative | Gemini 2.5 Pro |
 
 ---
 

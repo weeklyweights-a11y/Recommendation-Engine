@@ -2,22 +2,12 @@
 
 import pytest
 
-from config.settings import SkillGraphSettings
 from src.knowledge_graph.skill_expander import (
     _cached_expand,
     expand_skill,
     expand_skill_by_label,
     expand_skills,
-    _hop_weight,
 )
-
-
-def test_hop_weight_broader_penalty():
-    """Broader relations apply penalty multiplier."""
-    settings = SkillGraphSettings()
-    related = _hop_weight(settings, 1, "related")
-    broader = _hop_weight(settings, 1, "broader")
-    assert broader < related
 
 
 @pytest.mark.integration

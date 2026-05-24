@@ -64,14 +64,23 @@ class ElasticsearchSettings(BaseSettings):
 
 
 class LLMSettings(BaseSettings):
-    """LLM API settings (Phase 2+)."""
+    """Google Gemini API settings (Phase 2+).
+
+    Use ``llm_model_pro`` for quality-critical paths (resume extraction, match
+    explanations). Use ``llm_model_flash`` for high-volume batch work (job field
+    extraction and similar).
+    """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
-    llm_model: str = Field(
-        default="claude-sonnet-4-20250514",
-        alias="LLM_MODEL",
+    google_ai_api_key: str = Field(default="", alias="GOOGLE_AI_API_KEY")
+    llm_model_pro: str = Field(
+        default="gemini-2.5-pro",
+        alias="LLM_MODEL_PRO",
+    )
+    llm_model_flash: str = Field(
+        default="gemini-2.5-flash",
+        alias="LLM_MODEL_FLASH",
     )
     llm_max_tokens: int = Field(default=4096, alias="LLM_MAX_TOKENS")
 

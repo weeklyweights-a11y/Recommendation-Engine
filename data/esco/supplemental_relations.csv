@@ -1,0 +1,9 @@
+source_uri,target_uri,relation_type
+http://data.europa.eu/esco/skill/ecc4552a-92c5-4222-b18d-faf5ac841080,http://data.europa.eu/esco/skill/3a2d5b45-56e4-4f5a-a55a-4a4a65afdc43,related
+http://data.europa.eu/esco/skill/3a2d5b45-56e4-4f5a-a55a-4a4a65afdc43,http://data.europa.eu/esco/skill/ecc4552a-92c5-4222-b18d-faf5ac841080,related
+http://data.europa.eu/esco/skill/ecc4552a-92c5-4222-b18d-faf5ac841080,http://data.europa.eu/esco/skill/5608d5a0-6d5e-43b7-be37-616501729bb4,related
+http://data.europa.eu/esco/skill/5608d5a0-6d5e-43b7-be37-616501729bb4,http://data.europa.eu/esco/skill/ecc4552a-92c5-4222-b18d-faf5ac841080,related
+http://data.europa.eu/esco/skill/ecc4552a-92c5-4222-b18d-faf5ac841080,http://data.europa.eu/esco/skill/25f0ea33-b4a2-4f31-b7b4-7d20e827b180,related
+http://data.europa.eu/esco/skill/25f0ea33-b4a2-4f31-b7b4-7d20e827b180,http://data.europa.eu/esco/skill/ecc4552a-92c5-4222-b18d-faf5ac841080,related
+http://data.europa.eu/esco/skill/ae4f0cc6-e0b9-47f5-bdca-2fc2e6316dce,http://data.europa.eu/esco/skill/1b2ec9bb-ba7c-4f93-87ac-ec712c9b68c3,related
+http://data.europa.eu/esco/skill/1b2ec9bb-ba7c-4f93-87ac-ec712c9b68c3,http://data.europa.eu/esco/skill/ae4f0cc6-e0b9-47f5-bdca-2fc2e6316dce,related

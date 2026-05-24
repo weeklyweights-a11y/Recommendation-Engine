@@ -52,7 +52,7 @@ Upload your resume, connect your GitHub, set your preferences. Get a personalize
 | Vector Search | FAISS | Free, local, proven at million-scale (CareerBuilder) |
 | Lexical Search | Elasticsearch | BM25 scoring, catches exact matches embeddings miss |
 | Embeddings | all-MiniLM-L6-v2 (sentence-transformers) | Fast, 384 dims, proven in JobMatchAI |
-| LLM | Claude API (via Anthropic SDK) | Structured extraction, preference inference, explanations |
+| LLM | Google Gemini API (via `google-genai`) | Structured extraction, preference inference, explanations |
 | Resume Parsing | PyMuPDF + python-docx | PDF and DOCX text extraction |
 | GitHub Data | GitHub REST API | Public repos, languages, activity |
 | Frontend | Streamlit | Fast to build, interactive, good for data apps |
@@ -290,7 +290,7 @@ personalmatch/
 #### Step 2.2 — LLM Structured Extractor
 - Build `src/ingestion/llm_extractor.py`:
   - `extract_profile(resume_text, github_data=None) -> CandidateProfile`
-  - Send resume text to Claude API with a structured extraction prompt
+  - Send resume text to Gemini API (`LLM_MODEL_PRO`) with a structured extraction prompt
   - Prompt instructs the LLM to return JSON with:
     - `name`, `email`, `phone` (if present)
     - `skills` — list of {skill_name, proficiency: junior/mid/senior/expert, years_used, context}
@@ -369,7 +369,7 @@ personalmatch/
     - `domain_embedding` — from industry/vertical context
     - `role_embedding` — from role title, responsibilities, level
     - `environment_embedding` — from company description, size, stage, culture signals
-  - Use LLM to first extract structured fields from raw job description (skills required, domain, company stage, etc.) then embed the structured text
+  - Use LLM (`LLM_MODEL_FLASH`) to first extract structured fields from raw job description (skills required, domain, company stage, etc.) then embed the structured text
 - Build `scripts/embed_jobs.py`:
   - Batch process all jobs in PostgreSQL
   - Generate embeddings in batches of 64
@@ -467,7 +467,7 @@ personalmatch/
   - Strict separation: scoring is deterministic, explanation is generative
   - Output format: 2-3 sentence explanation + bullet list of top match reasons + any gaps/stretches
   - `explain_batch(candidate_profile, ranked_jobs, top_k=20) -> List[str]`
-  - Batch explanations for efficiency (can batch multiple jobs in one LLM call)
+  - Use `LLM_MODEL_PRO` for explanations; batch multiple jobs in one LLM call for efficiency
 - **Commit:** `feat(matching): LLM-powered match explanations with separated scoring/explanation layers`
 
 #### Step 4.4 — Recommendation Pipeline Orchestrator
@@ -649,9 +649,10 @@ NEO4J_PASSWORD=
 # Elasticsearch
 ELASTICSEARCH_URL=http://localhost:9200
 
-# LLM
-ANTHROPIC_API_KEY=
-LLM_MODEL=claude-sonnet-4-20250514
+# LLM (Google Gemini)
+GOOGLE_AI_API_KEY=
+LLM_MODEL_PRO=gemini-2.5-pro
+LLM_MODEL_FLASH=gemini-2.5-flash
 LLM_MAX_TOKENS=4096
 
 # GitHub

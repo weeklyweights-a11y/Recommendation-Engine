@@ -13,7 +13,7 @@ By the end of Phase 2, the following must be true:
 
 ## Prerequisites
 - Phase 1 complete: Docker services running, PostgreSQL schema, Neo4j with ESCO loaded, entity linker working
-- Anthropic API key in `.env`
+- Google AI API key (`GOOGLE_AI_API_KEY`) in `.env`
 - GitHub personal access token in `.env`
 - Sentence-transformers model downloadable (internet access needed on first run)
 
@@ -92,7 +92,7 @@ Verify: take a real resume PDF (your own or a sample), run `parse_resume("path/t
 ## Step 2.2 — LLM Structured Extractor
 
 ### What to do
-Build the module that sends resume text (and optionally GitHub data) to the Claude API and gets back a structured JSON profile. This is where raw text becomes intelligence.
+Build the module that sends resume text (and optionally GitHub data) to the Google Gemini API and gets back a structured JSON profile. This is where raw text becomes intelligence.
 
 ### Instructions
 
@@ -174,8 +174,8 @@ If GitHub data is provided, add to the prompt: "Additionally, here is their GitH
 `extract_profile(resume_text: str, github_data: dict | None = None) -> ExtractedProfile`
 
 - Build the prompt from the template, inserting resume text and optionally GitHub data summary
-- Call the Anthropic SDK: create a message with the system prompt and user prompt
-- Model name from settings (default: `claude-sonnet-4-20250514`)
+- Call the `google-genai` SDK: `client.models.generate_content` with the system instruction and user prompt
+- Model name from `settings.llm.llm_model_pro` (default: `gemini-2.5-pro`) — quality-critical extraction
 - Max tokens from settings (default: 4096)
 - Parse the response: extract the text content from the response
 - Clean the response: strip markdown code fences if present (```json ... ```), strip any preamble text before the JSON
@@ -209,7 +209,7 @@ Log the token usage from each API call: input tokens, output tokens, total. Stor
 **Tests:**
 
 Create `tests/test_llm_extractor.py`:
-- Mock the Anthropic API client — do NOT make real API calls in tests
+- Mock the Google GenAI client — do NOT make real API calls in tests
 - Create a mock response that returns a valid JSON profile
 - Test that the extraction function correctly parses the mock response into an ExtractedProfile
 - Test retry logic: mock first call returning invalid JSON, second call returning valid JSON — verify retry works

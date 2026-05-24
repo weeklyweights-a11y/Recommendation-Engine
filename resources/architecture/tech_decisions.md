@@ -43,7 +43,7 @@ Rationale for each major component choice. Each decision maps to evidence from o
 | **Regulatory/compliance** | Risky in hiring contexts | Factor-wise decomposition auditable |
 | **User trust** | "Why am I seeing this?" unanswered | Per-factor breakdown + narrative |
 
-**Decision:** Deterministic multi-factor utility function for all ranking. Claude Sonnet receives only `{factor_scores, kg_paths, job_metadata}` for explanations — never raw documents for scoring.
+**Decision:** Deterministic multi-factor utility function for all ranking. Gemini Pro receives only `{factor_scores, kg_paths, job_metadata}` for explanations — never raw documents for scoring.
 
 **Reference:** `papers/jobmatchai.md` — "the strict separation of a deterministic scoring layer from a generative explanation layer"
 
@@ -169,15 +169,15 @@ Rationale for each major component choice. Each decision maps to evidence from o
 
 ---
 
-## LLM: Claude Sonnet (primary)
+## LLM: Gemini Pro + Flash
 
 | Use | Model |
 |-----|-------|
-| Resume → structured profile | Claude Sonnet |
-| Match explanations | Claude Sonnet |
-| Batch ingestion (cost-sensitive) | GPT-4o-mini |
+| Resume → structured profile | Gemini 2.5 Pro (`LLM_MODEL_PRO`) |
+| Match explanations | Gemini 2.5 Pro (`LLM_MODEL_PRO`) |
+| Batch job field extraction (cost-sensitive) | Gemini 2.5 Flash (`LLM_MODEL_FLASH`) |
 
-**Decision:** Claude for quality-critical paths; GPT-4o-mini for high-volume batch extraction only.
+**Decision:** Pro for quality-critical paths; Flash for high-volume batch extraction only.
 
 ---
 
@@ -198,7 +198,7 @@ Rationale for each major component choice. Each decision maps to evidence from o
 | ANN index | FAISS | Free, local, CareerBuilder-proven |
 | Knowledge graph | Neo4j + ESCO | Skill expansion, industry standard |
 | Scoring | Deterministic utility | Auditable, no hallucinated scores |
-| Explanation | Claude (scores only) | Narrates, never ranks |
+| Explanation | Gemini Pro (scores only) | Narrates, never ranks |
 | Embeddings | Multi-vector MiniLM | Different fit dimensions |
 | Retrieval | BM25 + semantic + graph | +7% NDCG (JobMatchAI) |
 | Reranking | Cross-encoder → utility | Two-stage quality at scale |

@@ -22,23 +22,38 @@ _skill_matrix: Optional[np.ndarray] = None
 _uri_by_index: list[str] = []
 
 
+def _register_label(index: dict[str, str], label: str, uri: str) -> None:
+    """Add a lowercase label alias to the index."""
+    key = label.strip().lower()
+    if key:
+        index[key] = uri
+
+
 def _load_label_index(client: Neo4jClient) -> None:
-    """Build lowercase label -> uri index from Neo4j."""
+    """Build lowercase label -> uri index from Neo4j preferred and alt labels."""
     global _label_index, _uri_labels
     if _label_index:
         return
-    records = client.run_query("MATCH (s:Skill) RETURN s.uri AS uri, s.label AS label")
+    records = client.run_query(
+        "MATCH (s:Skill) RETURN s.uri AS uri, s.label AS label, s.alt_labels AS alt_labels",
+    )
     index: dict[str, str] = {}
     uri_labels: dict[str, str] = {}
     for row in records:
         label = str(row.get("label", "")).strip()
         uri = str(row.get("uri", "")).strip()
-        if label and uri:
-            index[label.lower()] = uri
-            uri_labels[uri] = label
+        if not label or not uri:
+            continue
+        uri_labels[uri] = label
+        _register_label(index, label, uri)
+        alt_labels = row.get("alt_labels") or []
+        if isinstance(alt_labels, str):
+            alt_labels = [part.strip() for part in alt_labels.replace("|", "\n").splitlines() if part.strip()]
+        for alt in alt_labels:
+            _register_label(index, str(alt), uri)
     _label_index = index
     _uri_labels = uri_labels
-    logger.info("Loaded %s skill labels for exact matching", len(_label_index))
+    logger.info("Loaded %s skill label aliases for exact matching", len(_label_index))
 
 
 def _load_embeddings(settings: Settings) -> None:
@@ -58,6 +73,16 @@ def _load_embeddings(settings: Settings) -> None:
     with index_path.open(encoding="utf-8") as handle:
         _uri_by_index = json.load(handle)
     _embedding_model = SentenceTransformer(settings.embedding.embedding_model)
+
+
+def reset_linker_caches() -> None:
+    """Clear in-memory linker caches (for tests or after graph reload)."""
+    global _label_index, _uri_labels, _embedding_model, _skill_matrix, _uri_by_index
+    _label_index = {}
+    _uri_labels = {}
+    _embedding_model = None
+    _skill_matrix = None
+    _uri_by_index = []
 
 
 def link_skill_to_esco(free_text: str) -> Optional[LinkedSkill]:
@@ -85,25 +110,27 @@ def link_skill(free_text: str) -> Optional[LinkedSkill]:
         uri = _label_index[lower]
         return LinkedSkill(
             esco_uri=uri,
-            esco_label=text,
+            esco_label=_uri_labels.get(uri, text),
             match_type="exact",
             confidence=1.0,
         )
 
-    if _label_index:
+    if _label_index and len(lower) >= 4:
         match = process.extractOne(
             lower,
             _label_index.keys(),
-            scorer=fuzz.WRatio,
+            scorer=fuzz.token_set_ratio,
         )
         if match and match[1] / 100.0 >= settings.skill_graph.fuzzy_match_threshold:
-            uri = _label_index[match[0]]
-            return LinkedSkill(
-                esco_uri=uri,
-                esco_label=match[0],
-                match_type="fuzzy",
-                confidence=match[1] / 100.0,
-            )
+            matched_label = match[0]
+            if len(matched_label) >= 4 and len(matched_label) >= len(lower) * 0.4:
+                uri = _label_index[matched_label]
+                return LinkedSkill(
+                    esco_uri=uri,
+                    esco_label=_uri_labels.get(uri, matched_label),
+                    match_type="fuzzy",
+                    confidence=match[1] / 100.0,
+                )
 
     try:
         _load_embeddings(settings)
@@ -146,26 +173,28 @@ def link_skills(free_texts: list[str]) -> list[Optional[LinkedSkill]]:
             uri = _label_index[lower]
             results[idx] = LinkedSkill(
                 esco_uri=uri,
-                esco_label=stripped,
+                esco_label=_uri_labels.get(uri, stripped),
                 match_type="exact",
                 confidence=1.0,
             )
             continue
-        if _label_index:
+        if _label_index and len(lower) >= 4:
             match = process.extractOne(
                 lower,
                 _label_index.keys(),
-                scorer=fuzz.WRatio,
+                scorer=fuzz.token_set_ratio,
             )
             if match and match[1] / 100.0 >= settings.skill_graph.fuzzy_match_threshold:
-                uri = _label_index[match[0]]
-                results[idx] = LinkedSkill(
-                    esco_uri=uri,
-                    esco_label=match[0],
-                    match_type="fuzzy",
-                    confidence=match[1] / 100.0,
-                )
-                continue
+                matched_label = match[0]
+                if len(matched_label) >= 4 and len(matched_label) >= len(lower) * 0.4:
+                    uri = _label_index[matched_label]
+                    results[idx] = LinkedSkill(
+                        esco_uri=uri,
+                        esco_label=_uri_labels.get(uri, matched_label),
+                        match_type="fuzzy",
+                        confidence=match[1] / 100.0,
+                    )
+                    continue
         pending_semantic.append((idx, stripped))
 
     if not pending_semantic:

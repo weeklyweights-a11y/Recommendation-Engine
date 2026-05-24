@@ -46,7 +46,7 @@ Five-stage pipeline for a personalized, explainable job matching MVP. Synthesize
 | Step | Component | Tech |
 |------|-----------|------|
 | Document parsing | PDF/DOCX extractor | `pypdf`, `python-docx` |
-| Profile extraction | Structured JSON output | **Claude Sonnet** (primary) or GPT-4o-mini (batch) |
+| Profile extraction | Structured JSON output | **Gemini 2.5 Pro** (primary) or Gemini 2.5 Flash (batch) |
 | Skill linking | Map free-text → ESCO URIs | **Tabiya livelihoods classifier** |
 | Job normalization | Title, description, salary, location, level | Rule-based + LLM |
 | Graph population | Candidate/Job → Skill edges | **Neo4j** Cypher |
@@ -194,7 +194,7 @@ F = { Skill, Experience, Location, Salary, Semantic, Company }
 
 ### Explanation generation
 - **Input to LLM:** Pre-computed factor scores + KG paths + job title/company (no raw scoring authority)
-- **Model:** Claude Sonnet
+- **Model:** Gemini 2.5 Pro (`LLM_MODEL_PRO`)
 - **Output:** 2–3 sentence explanation per job; factor-wise breakdown
 
 ```
@@ -238,7 +238,7 @@ Prompt template:
 | **ESCO linking** | Tabiya livelihoods classifier |
 | **Reranker** | cross-encoder/ms-marco-MiniLM-L-6-v2 |
 | **Scoring** | Deterministic Python (no LLM) |
-| **Extraction + explanation** | Claude Sonnet |
+| **Extraction + explanation** | Gemini 2.5 Pro; batch extraction via Gemini 2.5 Flash |
 | **Evaluation** | JobSearch-XS (NDCG@10), LinkedIn Kaggle holdout |
 | **Data (MVP)** | ESCO CSVs, Kaggle LinkedIn postings |
 
