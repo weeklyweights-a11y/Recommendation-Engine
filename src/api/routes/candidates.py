@@ -76,22 +76,21 @@ async def create_candidate(
         candidate = upsert_candidate_profile(
             session,
             profile,
-            resume_text=profile.summary,
+            resume_text=profile.summary or "",
             resume_filename=resume.filename or "resume",
             github_username=github_username,
             embeddings=embeddings,
         )
-
-    return CandidateResponse(
-        id=candidate.id,
-        name=candidate.name,
-        email=candidate.email,
-        github_username=candidate.github_username,
-        profile=candidate.profile,
-        preferences=candidate.preferences,
-        created_at=candidate.created_at,
-        updated_at=candidate.updated_at,
-    )
+        return CandidateResponse(
+            id=candidate.id,
+            name=candidate.name,
+            email=candidate.email,
+            github_username=candidate.github_username,
+            profile=candidate.profile,
+            preferences=candidate.preferences,
+            created_at=candidate.created_at,
+            updated_at=candidate.updated_at,
+        )
 
 
 @router.get("/{candidate_id}", response_model=CandidateResponse)

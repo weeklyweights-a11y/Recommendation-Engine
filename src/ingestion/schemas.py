@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ExtractedSkill(BaseModel):
@@ -18,8 +18,10 @@ class ExtractedSkill(BaseModel):
 class ExtractedExperience(BaseModel):
     """Work experience entry from resume."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     company: str
-    title: str
+    title: str = Field(validation_alias=AliasChoices("title", "role", "job_title"))
     start_date: str
     end_date: Optional[str] = None
     duration_months: Optional[int] = None
@@ -88,6 +90,17 @@ class ExtractedProfile(BaseModel):
     career_trajectory: str = "lateral"
     inferred_preferences: InferredPreferences = Field(default_factory=InferredPreferences)
     summary: str = ""
+
+    @field_validator("inferred_preferences", mode="before")
+    @classmethod
+    def coerce_inferred_preferences(cls, value: object) -> object:
+        """Accept dict, model, or list of strings from the LLM."""
+        if value is None:
+            return InferredPreferences()
+        if isinstance(value, list):
+            joined = ", ".join(str(item) for item in value if item)
+            return InferredPreferences(likely_looking_for=joined or None)
+        return value
 
     @field_validator("total_years_experience", mode="before")
     @classmethod

@@ -53,6 +53,7 @@ def upsert_candidate_profile(
         candidate.embedding_environment = serialize_embedding(embeddings.environment)
 
     session.flush()
+    session.refresh(candidate)
     return candidate
 
 
