@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
-if TYPE_CHECKING:
-    from src.embeddings.schemas import CandidateEmbeddings
+from src.embeddings.schemas import CandidateEmbeddings
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -22,7 +21,7 @@ def upsert_candidate_profile(
     resume_filename: str,
     github_username: Optional[str] = None,
     github_data: Optional[dict[str, Any]] = None,
-    embeddings: Optional["CandidateEmbeddings"] = None,
+    embeddings: Optional[CandidateEmbeddings] = None,
     candidate_id: Optional[UUID] = None,
 ) -> Candidate:
     """Insert or update a candidate row from a built profile."""

@@ -127,18 +127,21 @@ async def test_llm_fallback_path(
 
 
 @pytest.mark.asyncio
+@patch("src.embeddings.candidate_embedder.embed_candidate")
 @patch("src.ingestion.profile_builder._assemble_profile", new_callable=AsyncMock)
-async def test_build_profile_delegates(mock_assemble: AsyncMock) -> None:
-    """build_profile returns assembled profile."""
-    expected = _sample_extracted()
-    mock_assemble.return_value = (
-        MagicMock(name="profile"),
-        "text",
-        None,
-        "resume.pdf",
-    )
-    result = await build_profile("resume.pdf")
-    assert result is mock_assemble.return_value[0]
+async def test_build_profile_returns_embeddings(
+    mock_assemble: AsyncMock,
+    mock_embed: MagicMock,
+) -> None:
+    """build_profile returns profile and embeddings."""
+    profile_mock = MagicMock(name="profile")
+    mock_assemble.return_value = (profile_mock, "text", None, "resume.pdf")
+    embedding_mock = MagicMock()
+    mock_embed.return_value = embedding_mock
+
+    profile, embeddings = await build_profile("resume.pdf")
+    assert profile is profile_mock
+    assert embeddings is embedding_mock
 
 
 def test_skill_depth_prefers_resume_base() -> None:

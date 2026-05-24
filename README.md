@@ -43,6 +43,31 @@ set RUN_INTEGRATION=1
 pytest tests/test_skill_expander.py tests/test_entity_linker.py -m integration
 ```
 
+## Phase 2 runbook
+
+Prerequisites: Phase 1 complete (Docker, ESCO loaded, `precompute_esco_embeddings.py` run). Set `GOOGLE_AI_API_KEY` (or `GOOGLE_API_KEY`) and optionally `GITHUB_TOKEN` in `.env`.
+
+```bash
+# Unit tests (mocked Gemini + GitHub)
+pytest tests/test_resume_parser.py tests/test_llm_extractor.py tests/test_github_fetcher.py tests/test_profile_builder.py tests/test_candidate_embedder.py -v
+
+# Pipeline integration (mocked APIs)
+pytest tests/test_phase2_pipeline.py -m integration -v
+
+# Build profile locally (no DB write)
+python scripts/build_candidate_profile.py --resume path/to/resume.pdf --github YOUR_USERNAME
+
+# Build and persist to Postgres
+python scripts/build_candidate_profile.py --resume path/to/resume.pdf --github YOUR_USERNAME --save
+```
+
+Optional full-stack linker test:
+
+```bash
+set RUN_INTEGRATION=1
+pytest tests/test_entity_linker.py -m integration
+```
+
 ## Project structure
 
 - `config/` — settings and logging

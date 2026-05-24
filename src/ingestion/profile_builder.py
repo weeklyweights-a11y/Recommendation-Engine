@@ -403,15 +403,18 @@ async def build_profile(
     github_username: str | None = None,
     preferences: CandidatePreferences | None = None,
     settings: Settings | None = None,
-) -> CandidateProfile:
-    """Build a unified candidate profile from resume and optional GitHub data."""
+) -> tuple[CandidateProfile, "CandidateEmbeddings"]:
+    """Build profile and four semantic embedding vectors."""
+    from src.embeddings.candidate_embedder import embed_candidate
+
     profile, _, _, _ = await _assemble_profile(
         resume_file_path,
         github_username=github_username,
         preferences=preferences,
         settings=settings,
     )
-    return profile
+    embeddings = embed_candidate(profile, settings=settings)
+    return profile, embeddings
 
 
 async def build_and_save_profile(
@@ -420,15 +423,17 @@ async def build_and_save_profile(
     preferences: CandidatePreferences | None = None,
     session: Session | None = None,
     settings: Settings | None = None,
-) -> CandidateProfile:
-    """Build profile and persist to PostgreSQL."""
+) -> tuple[CandidateProfile, "CandidateEmbeddings"]:
+    """Build profile, embed, and persist to PostgreSQL."""
+    from src.embeddings.candidate_embedder import embed_candidate
+
     profile, resume_text, github_profile, resume_filename = await _assemble_profile(
         resume_file_path,
         github_username=github_username,
         preferences=preferences,
         settings=settings,
     )
-
+    embeddings = embed_candidate(profile, settings=settings)
     github_data = github_profile.model_dump(mode="json") if github_profile else None
     if session is not None:
         upsert_candidate_profile(
@@ -438,5 +443,6 @@ async def build_and_save_profile(
             resume_filename=resume_filename,
             github_username=github_username,
             github_data=github_data,
+            embeddings=embeddings,
         )
-    return profile
+    return profile, embeddings
