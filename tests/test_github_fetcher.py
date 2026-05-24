@@ -83,6 +83,59 @@ async def test_fetch_github_profile_success(github_base: str) -> None:
 
 
 @pytest.mark.asyncio
+async def test_rate_limit_uses_partial_repos(github_base: str) -> None:
+    """When rate limited mid-fetch, return profile using repos already fetched."""
+    username = "partialuser"
+    recent = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    repos = [
+        {
+            "name": f"repo-{i}",
+            "description": f"Repo {i}",
+            "language": "Python",
+            "stargazers_count": i,
+            "fork": False,
+            "pushed_at": recent,
+            "size": 100,
+            "topics": [],
+            "has_wiki": False,
+            "default_branch": "main",
+        }
+        for i in range(5)
+    ]
+    with respx.mock(using="httpx") as mock:
+        mock.get(f"{github_base}/users/{username}").respond(
+            200,
+            json={
+                "login": username,
+                "public_repos": 5,
+                "followers": 1,
+                "following": 0,
+                "created_at": "2020-01-01T00:00:00Z",
+            },
+        )
+        mock.get(url=re.compile(rf"{re.escape(github_base)}/users/{username}/repos.*")).respond(
+            200,
+            json=repos,
+        )
+        mock.get(url=re.compile(rf"{re.escape(github_base)}/repos/{username}/repo-0/languages")).respond(
+            200,
+            json={"Python": 100},
+        )
+        mock.get(url=re.compile(rf"{re.escape(github_base)}/repos/{username}/repo-0/readme")).respond(404)
+        mock.get(url=re.compile(rf"{re.escape(github_base)}/repos/{username}/repo-0/contents/")).respond(
+            200,
+            json=[],
+        )
+        mock.get(url=re.compile(rf"{re.escape(github_base)}/repos/{username}/repo-1/languages")).respond(
+            403,
+        )
+
+        profile = await fetch_github_profile(username)
+        assert profile.username == username
+        assert len(profile.top_repos) >= 3
+
+
+@pytest.mark.asyncio
 async def test_user_not_found(github_base: str) -> None:
     """404 on user raises GitHubUserNotFoundError."""
     with respx.mock(using="httpx") as mock:

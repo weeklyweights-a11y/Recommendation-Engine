@@ -12,7 +12,7 @@ from typing import Any, Optional
 import httpx
 
 from config.settings import Settings, get_settings
-from src.ingestion.exceptions import GitHubUserNotFoundError
+from src.ingestion.exceptions import GitHubRateLimitedError, GitHubUserNotFoundError
 from src.ingestion.schemas import ActivityMetrics, GitHubProfile, RepoAnalysis
 
 logger = logging.getLogger(__name__)
@@ -102,24 +102,29 @@ async def _request_json(
 
         if response.status_code == 404:
             return None
-        if response.status_code in (403, 429) and attempt < max_retries:
-            reset = response.headers.get("X-RateLimit-Reset")
-            wait_seconds = 2**attempt
-            if reset:
-                try:
-                    reset_dt = datetime.fromtimestamp(int(reset), tz=timezone.utc)
-                    wait_seconds = max(1, int((reset_dt - datetime.now(timezone.utc)).total_seconds()))
-                except ValueError:
-                    pass
-            logger.warning("GitHub rate limited; sleeping %ss", wait_seconds)
-            await asyncio.sleep(min(wait_seconds, 60))
-            continue
+        if response.status_code in (403, 429):
+            max_wait = settings.ingestion.github_rate_limit_max_wait_seconds
+            if attempt < max_retries:
+                reset = response.headers.get("X-RateLimit-Reset")
+                wait_seconds = min(2**attempt, max_wait)
+                if reset:
+                    try:
+                        reset_dt = datetime.fromtimestamp(int(reset), tz=timezone.utc)
+                        wait_seconds = min(
+                            max_wait,
+                            max(1, int((reset_dt - datetime.now(timezone.utc)).total_seconds())),
+                        )
+                    except ValueError:
+                        pass
+                logger.warning("GitHub rate limited; sleeping %ss", wait_seconds)
+                await asyncio.sleep(wait_seconds)
+                continue
+            raise GitHubRateLimitedError(f"GitHub rate limited: {url}")
 
         response.raise_for_status()
         return response.json()
 
-    response.raise_for_status()
-    return None
+    raise GitHubRateLimitedError(f"GitHub rate limited after retries: {url}")
 
 
 async def _fetch_all_repos(
@@ -136,6 +141,14 @@ async def _fetch_all_repos(
         response = await client.get(url)
         if response.status_code == 404:
             return repos
+        if response.status_code in (403, 429):
+            if repos:
+                logger.warning(
+                    "GitHub rate limited listing repos; using %s fetched so far",
+                    len(repos),
+                )
+                return repos[:max_repos]
+            raise GitHubRateLimitedError("GitHub rate limited fetching repo list")
         response.raise_for_status()
         batch = response.json()
         if not isinstance(batch, list):
@@ -277,6 +290,45 @@ def _infer_skills_from_github(
     return skills[:50]
 
 
+def _analysis_from_listing(repo: dict[str, Any]) -> RepoAnalysis:
+    """Build a lightweight repo analysis from the /repos list payload (no extra API calls)."""
+    pushed = _parse_github_datetime(repo.get("pushed_at"))
+    language = repo.get("language")
+    languages = [str(language)] if language else []
+    return RepoAnalysis(
+        name=str(repo.get("name", "")),
+        complexity="low",
+        languages=languages,
+        description=str(repo.get("description") or ""),
+        stars=int(repo.get("stargazers_count") or 0),
+        last_active=_relative_time(pushed),
+        readme_summary=None,
+        production_signals=[],
+        topics=[str(t) for t in repo.get("topics") or []],
+        has_wiki=bool(repo.get("has_wiki")),
+        default_branch=str(repo.get("default_branch") or "main"),
+    )
+
+
+def _ensure_min_repo_analyses(
+    analyses: list[RepoAnalysis],
+    filtered: list[dict[str, Any]],
+    min_count: int,
+) -> list[RepoAnalysis]:
+    """Backfill repo analyses from listing metadata when detail fetches were rate limited."""
+    if len(analyses) >= min_count:
+        return analyses
+    seen = {analysis.name for analysis in analyses}
+    for repo in filtered:
+        if len(analyses) >= min_count:
+            break
+        name = str(repo.get("name", ""))
+        if name and name not in seen:
+            analyses.append(_analysis_from_listing(repo))
+            seen.add(name)
+    return analyses
+
+
 def _overall_assessment(repos: list[dict[str, Any]], repos_6mo: int) -> str:
     if not repos:
         return "inactive"
@@ -344,68 +396,90 @@ async def fetch_github_profile(
 
         repo_lang_maps: list[dict[str, int]] = []
         analyses: list[RepoAnalysis] = []
+        min_partial = cfg.ingestion.github_min_repos_partial
 
-        for idx, repo in enumerate(filtered[:top_signals_n]):
-            name = str(repo.get("name", ""))
-            langs: dict[str, int] = {}
-            if idx < top_lang_n:
-                langs = await _fetch_languages(http_client, user, name, cfg)
-                if langs:
-                    repo_lang_maps.append(langs)
-
-            readme_full: Optional[str] = None
-            if idx < top_readme_n:
-                readme_full = await _fetch_readme(http_client, user, name, cfg)
-
-            has_docker = has_ci = has_tests = has_deps = False
-            if idx < top_signals_n:
+        try:
+            for idx, repo in enumerate(filtered[:top_signals_n]):
+                name = str(repo.get("name", ""))
                 try:
-                    has_docker, has_ci, has_tests, has_deps = await _detect_production_signals(
-                        http_client,
-                        user,
-                        name,
-                        cfg,
+                    langs: dict[str, int] = {}
+                    if idx < top_lang_n:
+                        langs = await _fetch_languages(http_client, user, name, cfg)
+                        if langs:
+                            repo_lang_maps.append(langs)
+
+                    readme_full: Optional[str] = None
+                    if idx < top_readme_n:
+                        readme_full = await _fetch_readme(http_client, user, name, cfg)
+
+                    has_docker = has_ci = has_tests = has_deps = False
+                    if idx < top_signals_n:
+                        try:
+                            has_docker, has_ci, has_tests, has_deps = await _detect_production_signals(
+                                http_client,
+                                user,
+                                name,
+                                cfg,
+                            )
+                        except httpx.HTTPError as exc:
+                            logger.warning(
+                                "Production signal check failed for %s/%s: %s",
+                                user,
+                                name,
+                                exc,
+                            )
+
+                    signals: list[str] = []
+                    if has_docker:
+                        signals.append("docker")
+                    if has_ci:
+                        signals.append("ci")
+                    if has_tests:
+                        signals.append("tests")
+                    if has_deps:
+                        signals.append("deps")
+
+                    lang_keys = list(langs.keys()) if langs else (
+                        [repo.get("language")] if repo.get("language") else []
                     )
-                except httpx.HTTPError as exc:
-                    logger.warning("Production signal check failed for %s/%s: %s", user, name, exc)
+                    multi_lang = len(lang_keys) > 1
+                    pushed = _parse_github_datetime(repo.get("pushed_at"))
+                    analyses.append(
+                        RepoAnalysis(
+                            name=name,
+                            complexity=_complexity_score(
+                                has_tests,
+                                has_docker,
+                                has_ci,
+                                multi_lang,
+                                int(repo.get("size") or 0),
+                                int(repo.get("stargazers_count") or 0),
+                            ),
+                            languages=[str(lang) for lang in lang_keys if lang],
+                            description=str(repo.get("description") or ""),
+                            stars=int(repo.get("stargazers_count") or 0),
+                            last_active=_relative_time(pushed),
+                            readme_summary=(readme_full[:500] if readme_full else None),
+                            production_signals=signals,
+                            topics=[str(t) for t in repo.get("topics") or []],
+                            has_wiki=bool(repo.get("has_wiki")),
+                            default_branch=str(repo.get("default_branch") or "main"),
+                        ),
+                    )
+                except GitHubRateLimitedError:
+                    if len(analyses) >= min_partial:
+                        logger.warning(
+                            "GitHub rate limited after %s detailed repos; using partial profile",
+                            len(analyses),
+                        )
+                        break
+                    raise
+        except GitHubRateLimitedError:
+            if not filtered:
+                raise
+            logger.warning("GitHub rate limited during repo analysis; using listing metadata")
 
-            signals: list[str] = []
-            if has_docker:
-                signals.append("docker")
-            if has_ci:
-                signals.append("ci")
-            if has_tests:
-                signals.append("tests")
-            if has_deps:
-                signals.append("deps")
-
-            lang_keys = list(langs.keys()) if langs else (
-                [repo.get("language")] if repo.get("language") else []
-            )
-            multi_lang = len(lang_keys) > 1
-            pushed = _parse_github_datetime(repo.get("pushed_at"))
-            analyses.append(
-                RepoAnalysis(
-                    name=name,
-                    complexity=_complexity_score(
-                        has_tests,
-                        has_docker,
-                        has_ci,
-                        multi_lang,
-                        int(repo.get("size") or 0),
-                        int(repo.get("stargazers_count") or 0),
-                    ),
-                    languages=[str(lang) for lang in lang_keys if lang],
-                    description=str(repo.get("description") or ""),
-                    stars=int(repo.get("stargazers_count") or 0),
-                    last_active=_relative_time(pushed),
-                    readme_summary=(readme_full[:500] if readme_full else None),
-                    production_signals=signals,
-                    topics=[str(t) for t in repo.get("topics") or []],
-                    has_wiki=bool(repo.get("has_wiki")),
-                    default_branch=str(repo.get("default_branch") or "main"),
-                ),
-            )
+        analyses = _ensure_min_repo_analyses(analyses, filtered, min_partial)
 
         now = datetime.now(timezone.utc)
         repos_6mo = sum(

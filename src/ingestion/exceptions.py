@@ -19,3 +19,7 @@ class ExtractionFailedError(ResumeParsingError):
 
 class GitHubUserNotFoundError(ResumeParsingError):
     """Raised when a GitHub username does not exist."""
+
+
+class GitHubRateLimitedError(ResumeParsingError):
+    """Raised when GitHub API rate limit blocks further requests."""

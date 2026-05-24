@@ -241,6 +241,11 @@ class IngestionSettings(BaseSettings):
         alias="GITHUB_RATE_LIMIT_WARN_THRESHOLD",
     )
     github_rate_limit_max_retries: int = Field(default=3, alias="GITHUB_RATE_LIMIT_MAX_RETRIES")
+    github_rate_limit_max_wait_seconds: int = Field(
+        default=5,
+        alias="GITHUB_RATE_LIMIT_MAX_WAIT_SECONDS",
+    )
+    github_min_repos_partial: int = Field(default=3, alias="GITHUB_MIN_REPOS_PARTIAL")
     github_fork_recency_days: int = Field(default=180, alias="GITHUB_FORK_RECENCY_DAYS")
     github_llm_summary_max_chars: int = Field(default=4000, alias="GITHUB_LLM_SUMMARY_MAX_CHARS")
     github_username_max_length: int = Field(default=39, alias="GITHUB_USERNAME_MAX_LENGTH")
