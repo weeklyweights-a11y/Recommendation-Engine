@@ -17,6 +17,8 @@ class ScoredJob(BaseModel):
     source: str
     title: Optional[str] = None
     company: Optional[str] = None
+    dimension_scores: Optional[dict[str, float]] = None
+    matched_skills: Optional[list[dict]] = None
 
 
 class RecommendationResponse(BaseModel):
