@@ -257,6 +257,19 @@ class IngestionSettings(BaseSettings):
     embedding_chunk_token_limit: int = Field(default=512, alias="EMBEDDING_CHUNK_TOKEN_LIMIT")
 
 
+class HardFilterSettings(BaseSettings):
+    """Hard constraint filter settings (Phase 4)."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    min_results_warn: int = Field(default=50, alias="HARD_FILTER_MIN_RESULTS_WARN")
+    pipeline_min_warn: int = Field(default=10, alias="HARD_FILTER_PIPELINE_MIN_WARN")
+    all_work_models: str = Field(
+        default="remote,hybrid,onsite",
+        alias="HARD_FILTER_ALL_WORK_MODELS",
+    )
+
+
 class AppSettings(BaseSettings):
     """Application server settings."""
 
@@ -286,6 +299,7 @@ class Settings(BaseSettings):
     job_embedding: JobEmbeddingSettings = Field(default_factory=JobEmbeddingSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
+    hard_filter: HardFilterSettings = Field(default_factory=HardFilterSettings)
     app: AppSettings = Field(default_factory=AppSettings)
 
 
