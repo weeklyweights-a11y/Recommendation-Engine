@@ -27,3 +27,10 @@ Thumbs.db
 logs/
 *.log
 docker-data/
+
+# Local planning docs and IDE rules (not published)
+PHASE*_SPEC.md
+PROJECT.md
+cursorrules
+.cursor/
+resources/
