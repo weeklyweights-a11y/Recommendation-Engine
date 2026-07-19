@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-import pytest
 
 from src.matching.recommendation_pipeline import run_recommendation_pipeline
 from src.matching.schemas import FilterFunnel, FusedResult, HybridTiming, RankedJob

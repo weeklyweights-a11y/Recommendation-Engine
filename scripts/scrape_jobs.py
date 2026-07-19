@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 import httpx
 import yaml
@@ -159,7 +159,6 @@ def scrape_source(
     start_url = urljoin(base_url + "/", listing_path.lstrip("/"))
     delay = float(source.get("rate_limit_seconds", 2.0))
     max_pages = int(source.get("pagination", {}).get("max_pages", 10))
-    headers = {"User-Agent": source.get("user_agent", "PersonalMatchBot/1.0")}
 
     all_records: list[dict[str, Any]] = []
 

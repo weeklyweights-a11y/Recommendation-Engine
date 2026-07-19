@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from config.settings import Settings, get_settings
-from src.api.schemas.candidate import CandidateProfile, ESCOLinkedSkill, ProfileSkill
+from src.api.schemas.candidate import CandidateProfile, ESCOLinkedSkill
 from src.api.schemas.recommendation import ScoredJob
 from src.db.models import Job
 from src.embeddings.skills_extracted_parser import parse_skills_extracted

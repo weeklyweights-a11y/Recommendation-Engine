@@ -3,18 +3,14 @@
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 
 from src.embeddings.encoder import EMBEDDING_DIM
 from src.embeddings.job_embedder import (
     _build_domain_text,
-    _build_role_text,
-    _build_skill_text,
-    extract_job_fields,
     link_job_skills,
 )
 from src.embeddings.job_field_extractor import extract_job_fields_rule
-from src.embeddings.schemas import JobFields, LinkedJobSkill
+from src.embeddings.schemas import JobFields
 
 
 def _mock_job(**kwargs):

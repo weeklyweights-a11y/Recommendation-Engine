@@ -111,7 +111,7 @@ def test_utility_weights_change_order(rerank_session) -> None:
         FusedResult(job_id=str(job.id), fused_score=0.9, vector_score=0.9),
         FusedResult(job_id=str(job2.id), fused_score=0.8, vector_score=0.4),
     ]
-    default_rank = reranker.rerank(profile, fused, top_k=2)
+    reranker.rerank(profile, fused, top_k=2)  # verify no error
     custom = reranker.rerank(
         profile,
         fused,

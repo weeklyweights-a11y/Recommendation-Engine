@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from src.api.schemas.candidate import CandidateProfile
 from src.db.models import Job

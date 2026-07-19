@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -12,11 +11,10 @@ from fastapi.testclient import TestClient
 
 from src.api.dependencies import get_db_session
 from src.api.main import create_app
-from src.api.schemas.candidate import CandidateProfile
 from src.db.models import Candidate
 from src.embeddings.schemas import CandidateEmbeddings
 from src.matching.reranker import FACTOR_KEYS
-from src.matching.schemas import FilterFunnel, HybridTiming, PipelineResult, PipelineStats, PipelineTiming, RankedJob
+from src.matching.schemas import FilterFunnel, PipelineResult, PipelineStats, PipelineTiming, RankedJob
 from tests.conftest import integration_services_available
 from tests.integration_fixtures import seed_integration_jobs
 

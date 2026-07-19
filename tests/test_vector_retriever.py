@@ -2,11 +2,9 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import faiss
 import numpy as np
-import pytest
 
 from config.settings import Settings
 from src.embeddings.encoder import EMBEDDING_DIM

@@ -1,6 +1,5 @@
 """Tests for skill enrichment."""
 
-from src.api.schemas.candidate import CandidateProfile, ProfileSkill
 from src.ingestion.schemas import ExtractedProfile, ExtractedSkill, GitHubProfile
 from src.ingestion.skill_supplement import enrich_extracted_skills
 
