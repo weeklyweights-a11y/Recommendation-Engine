@@ -2,7 +2,6 @@
 
 import logging
 from functools import lru_cache
-from typing import Optional
 
 from config.settings import get_settings
 from src.knowledge_graph.schemas import ExpandedSkill, OccupationSkill

@@ -321,7 +321,6 @@ class Reranker:
             return ranked
 
         pool = ranked[cfg.diversity_top_n : cfg.diversity_scan_until]
-        used_ids = {r.job_id for r in top}
         inject: list[RankedJob] = []
         for candidate in pool:
             ind = (getattr(candidate.job, "industry", None) or "unknown").lower()
@@ -375,7 +374,6 @@ class Reranker:
             str(j.id): j
             for j in self._session.scalars(select(Job).where(Job.id.in_(job_ids)))
         }
-        fused_by_id = {r.job_id: r for r in fused_results}
         cand_uris = self._candidate_skill_uris(profile)
         preferences = profile.preferences
 

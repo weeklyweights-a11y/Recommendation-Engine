@@ -153,7 +153,6 @@ def render_job_card(
     pct = int(rec.get("match_percentage") or round(float(rec.get("match_score", 0)) * 100))
     color = match_pct_color(pct)
 
-    border = "2px solid #f0c040" if saved_highlight else "1px solid #e0e0e0"
     with st.container(border=True):
         st.markdown(
             f"<div style='border-left:4px solid {color}; padding-left:8px'>",

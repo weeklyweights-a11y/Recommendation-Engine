@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional, TypeVar
 
-from src.api.schemas.candidate import MergedPreferences, PreferenceField
+from src.api.schemas.candidate import CandidatePreferences, MergedPreferences, PreferenceField
 
 T = TypeVar("T")
 
@@ -89,7 +89,7 @@ def patch_merged_preferences(
     explicit: "CandidatePreferences",
 ) -> MergedPreferences:
     """Apply explicit preference overrides onto merged profile preferences."""
-    from src.api.schemas.candidate import CandidatePreferences, PreferenceField
+    from src.api.schemas.candidate import PreferenceField
 
     def _apply_list(explicit_values: list[str], target_attr: str) -> None:
         if explicit_values:

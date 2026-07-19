@@ -12,7 +12,6 @@ from src.ingestion.schemas import (
     ExtractedProfile,
     ExtractedSkill,
     GitHubProfile,
-    InferredPreferences,
 )
 from src.knowledge_graph.schemas import LinkedSkill
 from tests.test_llm_extractor import SAMPLE_PROFILE

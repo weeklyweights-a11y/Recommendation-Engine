@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 
 from src.ingestion.schemas import (
-    ExtractedEducation,
     ExtractedExperience,
     ExtractedProfile,
     ExtractedSkill,

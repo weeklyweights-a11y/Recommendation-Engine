@@ -9,7 +9,6 @@ import streamlit as st
 from config.settings import get_settings
 from frontend.components.feedback_buttons import hydrate_feedback
 from frontend.components.job_card import render_job_card
-from frontend.ui_settings import get_frontend_settings
 from frontend.utils.api_client import ApiError, get_recommendations
 from frontend.utils.feed_cache import (
     clear_feed_cache,

@@ -5,7 +5,6 @@ from pathlib import Path
 
 import faiss
 import numpy as np
-import pytest
 
 from config.settings import Settings
 from src.embeddings.encoder import EMBEDDING_DIM
