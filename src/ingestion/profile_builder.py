@@ -6,9 +6,12 @@ import logging
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from src.embeddings.schemas import CandidateEmbeddings
 
 from config.settings import Settings, get_settings
 from src.api.schemas.candidate import (
@@ -102,7 +105,6 @@ def _github_context(github: Optional[GitHubProfile]) -> dict[str, Any]:
     languages = {_normalize_skill(k) for k in github.languages_distribution}
     inferred.update(languages)
 
-    now = datetime.now(timezone.utc)
     recent_languages: set[str] = set()
     production_languages: set[str] = set()
     language_repo_counts: dict[str, int] = {}
@@ -301,7 +303,6 @@ def _build_profile_skills(
         linked_results = [None] * len(skill_names)
 
     link_by_name = {_normalize_skill(name): link for name, link in zip(skill_names, linked_results)}
-    resume_by_name = {_normalize_skill(s.name): s for s in extracted.skills}
 
     esco_linked: list[ESCOLinkedSkill] = []
     profile_skills: list[ProfileSkill] = []

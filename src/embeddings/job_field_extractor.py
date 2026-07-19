@@ -127,7 +127,6 @@ def _infer_domain(company: str, description: str) -> str:
 
 def _extract_industry_keywords(description: str) -> str:
     """Keyword scan for domain embedding sector focus."""
-    blob = description.lower()
     found: list[str] = []
     for domain, keywords in _DOMAIN_KEYWORDS.items():
         if any(kw in blob for kw in keywords):
@@ -141,7 +140,6 @@ def _extract_industry_keywords(description: str) -> str:
 def _scan_skills(description: str, settings: Settings) -> tuple[list[str], list[str]]:
     """Scan description for known skill labels."""
     labels = _load_extra_labels(settings.job_embedding.job_skill_dict_path)
-    blob = description.lower()
     required: list[str] = []
     preferred: list[str] = []
     pref_section = re.search(

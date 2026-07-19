@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from config.settings import Settings, get_settings
 from src.api.schemas.candidate import CandidateProfile, ProfileSkill
